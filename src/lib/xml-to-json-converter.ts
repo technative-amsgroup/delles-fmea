@@ -1,4 +1,9 @@
-import { TreeNode } from "@/lib/types";
+import {
+    TreeNode,
+    ParentTreeNode,
+    FaultTreeNode,
+    BaseTreeNode,
+} from "@/lib/types";
 import { parseString } from "xml2js";
 
 interface XMLElement {
@@ -51,11 +56,24 @@ export async function convertXMLToJSON(xmlContent: string): Promise<TreeNode> {
             function buildTreeNode(
                 element: XMLElement,
                 depth: number = 0
-            ): TreeNode {
-                const node: TreeNode = {
+            ): ParentTreeNode | FaultTreeNode {
+                const baseNode: BaseTreeNode = {
                     id: element.$.ID,
                     name: element["LONG-NAME"][0]["L-4"][0]._ || "Unnamed",
                     type: getNodeType(element, depth),
+                };
+
+                if (baseNode.type === "fault") {
+                    return baseNode as FaultTreeNode;
+                }
+
+                const parentNode: ParentTreeNode = {
+                    ...baseNode,
+                    type: baseNode.type as
+                        | "system"
+                        | "subsystem"
+                        | "component"
+                        | "function",
                     children: [],
                 };
 
@@ -65,7 +83,7 @@ export async function convertXMLToJSON(xmlContent: string): Promise<TreeNode> {
                     ].forEach((ref) => {
                         const childElement = elementsMap.get(ref.$["ID-REF"]);
                         if (childElement) {
-                            node.children.push(
+                            parentNode.children.push(
                                 buildTreeNode(childElement, depth + 1)
                             );
                         }
@@ -79,7 +97,7 @@ export async function convertXMLToJSON(xmlContent: string): Promise<TreeNode> {
                                 ref.$["ID-REF"]
                             );
                             if (funcElement) {
-                                node.children.push(
+                                parentNode.children.push(
                                     buildTreeNode(funcElement, depth)
                                 );
                             }
@@ -94,7 +112,7 @@ export async function convertXMLToJSON(xmlContent: string): Promise<TreeNode> {
                                 ref.$["ID-REF"]
                             );
                             if (faultElement) {
-                                node.children.push(
+                                parentNode.children.push(
                                     buildTreeNode(faultElement, depth)
                                 );
                             }
@@ -102,7 +120,7 @@ export async function convertXMLToJSON(xmlContent: string): Promise<TreeNode> {
                     );
                 }
 
-                return node;
+                return parentNode;
             }
 
             function getNodeType(

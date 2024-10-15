@@ -10,7 +10,7 @@ import {
     LayersIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { TreeNode, FaultData } from "@/lib/types";
+import { TreeNode, ParentTreeNode, FaultData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 /* import { initialTree } from "@/lib/initial-tree-data"; */
 
@@ -18,11 +18,11 @@ import { cn } from "@/lib/utils";
 export type { TreeNode, FaultData };
 
 interface TreeViewProps {
-    onNodeSelect: (node: TreeNode | (TreeNode & FaultData)) => void;
+    onNodeSelect: (node: TreeNode) => void;
     treeData: TreeNode;
 }
 
-export function TreeView({ onNodeSelect, treeData }: TreeViewProps) {
+const TreeView: React.FC<TreeViewProps> = ({ onNodeSelect, treeData }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
         new Set([treeData.id])
@@ -61,15 +61,12 @@ export function TreeView({ onNodeSelect, treeData }: TreeViewProps) {
     }, [searchTerm, debouncedSearch]);
 
     const searchNodes = useCallback(
-        (
-            node: TreeNode | (TreeNode & FaultData),
-            term: string
-        ): Set<string> => {
+        (node: TreeNode, term: string): Set<string> => {
             const foundNodes = new Set<string>();
             if (node.name.toLowerCase().includes(term.toLowerCase())) {
                 foundNodes.add(node.id);
             }
-            if (node.children) {
+            if ("children" in node && node.children) {
                 for (const child of node.children) {
                     const childFoundNodes = searchNodes(child, term);
                     if (childFoundNodes.size > 0) {
@@ -84,12 +81,9 @@ export function TreeView({ onNodeSelect, treeData }: TreeViewProps) {
     );
 
     const findNodeById = useCallback(
-        (
-            node: TreeNode | (TreeNode & FaultData),
-            id: string
-        ): (TreeNode | (TreeNode & FaultData)) | null => {
+        (node: TreeNode, id: string): TreeNode | null => {
             if (node.id === id) return node;
-            if (node.children) {
+            if ("children" in node && node.children) {
                 for (const child of node.children) {
                     const found = findNodeById(child, id);
                     if (found) return found;
@@ -134,7 +128,8 @@ export function TreeView({ onNodeSelect, treeData }: TreeViewProps) {
     }, []);
 
     const renderNode = (node: TreeNode | (TreeNode & FaultData)) => {
-        const hasChildren = node.children && node.children.length > 0;
+        const hasChildren =
+            "children" in node && node.children && node.children.length > 0;
         const isExpanded = expandedNodes.has(node.id);
         const isHighlighted = highlightedNodes.has(node.id);
         const isSelected = selectedNode === node.id;
@@ -197,7 +192,9 @@ export function TreeView({ onNodeSelect, treeData }: TreeViewProps) {
                     {getIcon()}
                     <span>{node.name}</span>
                 </div>
-                {hasChildren && isExpanded && node.children?.map(renderNode)}
+                {hasChildren &&
+                    isExpanded &&
+                    (node as ParentTreeNode).children?.map(renderNode)}
             </div>
         );
     };
@@ -216,4 +213,6 @@ export function TreeView({ onNodeSelect, treeData }: TreeViewProps) {
             </div>
         </div>
     );
-}
+};
+
+export { TreeView };

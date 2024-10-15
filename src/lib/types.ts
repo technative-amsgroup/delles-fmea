@@ -20,6 +20,7 @@ export interface FaultTreeNode extends BaseTreeNode {
     occurrence?: number;
     detection?: number;
     controls?: string;
+    children?: never; // Explicitly state that FaultTreeNode doesn't have children
 }
 
 // Union type for all possible node types

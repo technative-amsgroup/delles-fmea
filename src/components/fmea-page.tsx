@@ -30,7 +30,7 @@ export function FmeaPage() {
         const path: string[] = [];
 
         const findNodePath = (
-            currentNode: ParentTreeNode,
+            currentNode: TreeNode,
             targetId: string
         ): boolean => {
             if (currentNode.id === targetId) {
@@ -38,15 +38,9 @@ export function FmeaPage() {
                 return true;
             }
 
-            if (currentNode.children) {
+            if ("children" in currentNode && currentNode.children) {
                 for (const child of currentNode.children) {
-                    if ("children" in child) {
-                        if (findNodePath(child, targetId)) {
-                            path.unshift(currentNode.name);
-                            return true;
-                        }
-                    } else if (child.id === targetId) {
-                        path.unshift(child.name);
+                    if (findNodePath(child, targetId)) {
                         path.unshift(currentNode.name);
                         return true;
                     }
