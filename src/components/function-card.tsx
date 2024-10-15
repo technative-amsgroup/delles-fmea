@@ -1,9 +1,13 @@
 // function-card.tsx
 import React, { useCallback, useMemo } from "react";
 import { FunctionSquareIcon, AlertTriangleIcon } from "lucide-react";
-import { TreeNode } from "@/lib/types";
+import {
+    ParentTreeNode,
+    FaultTreeNode,
+    FMEAData,
+    FaultData,
+} from "@/lib/types";
 import { FaultCardComponent } from "@/components/fault-card";
-import { FMEAData } from "@/lib/types";
 import {
     Accordion,
     AccordionContent,
@@ -17,16 +21,14 @@ import { cn } from "@/lib/utils";
 const MemoizedFaultCardComponent = React.memo(FaultCardComponent);
 
 interface FunctionCardProps {
-    func: TreeNode;
-    faults: TreeNode[];
+    func: ParentTreeNode;
+    faults: FaultTreeNode[];
     componentId: string;
     data: FMEAData;
     onFaultDataChange: (
         functionId: string,
         faultId: string,
-        updatedFaultData: Partial<
-            FMEAData[string]["functions"][string]["faults"][string]
-        >
+        updatedFaultData: Partial<FaultData>
     ) => void;
 }
 
@@ -48,9 +50,7 @@ export const FunctionCard = React.memo(function FunctionCard({
         (
             functionId: string,
             faultId: string,
-            updatedFaultData: Partial<
-                FMEAData[string]["functions"][string]["faults"][string]
-            >
+            updatedFaultData: Partial<FaultData>
         ) => {
             onFaultDataChange(functionId, faultId, updatedFaultData);
         },
@@ -61,11 +61,7 @@ export const FunctionCard = React.memo(function FunctionCard({
     const faultDataChangeHandlers = useMemo(() => {
         const handlers: Record<
             string,
-            (
-                updatedFaultData: Partial<
-                    FMEAData[string]["functions"][string]["faults"][string]
-                >
-            ) => void
+            (updatedFaultData: Partial<FaultData>) => void
         > = {};
         faults.forEach((fault) => {
             handlers[fault.id] = (updatedFaultData) =>

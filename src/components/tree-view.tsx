@@ -12,20 +12,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { TreeNode, FaultData } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { initialTree } from "@/lib/initial-tree-data";
+/* import { initialTree } from "@/lib/initial-tree-data"; */
 
 // Export TreeNode and FaultData
 export type { TreeNode, FaultData };
 
 interface TreeViewProps {
     onNodeSelect: (node: TreeNode | (TreeNode & FaultData)) => void;
+    treeData: TreeNode;
 }
 
-export function TreeView({ onNodeSelect }: TreeViewProps) {
-    const [tree] = useState(initialTree);
+export function TreeView({ onNodeSelect, treeData }: TreeViewProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
-        new Set([tree.id])
+        new Set([treeData.id])
     );
     const [selectedNode, setSelectedNode] = useState<string | null>(null);
     const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(
@@ -107,19 +107,25 @@ export function TreeView({ onNodeSelect }: TreeViewProps) {
             return;
         }
 
-        const foundNodes = searchNodes(tree, debouncedSearchTerm);
+        const foundNodes = searchNodes(treeData, debouncedSearchTerm);
         setHighlightedNodes(foundNodes);
         if (foundNodes.size > 0) {
             const firstFoundNodeId = Array.from(foundNodes)[0];
             setSelectedNode(firstFoundNodeId);
-            const firstFoundNode = findNodeById(tree, firstFoundNodeId);
+            const firstFoundNode = findNodeById(treeData, firstFoundNodeId);
             if (firstFoundNode) {
                 onNodeSelect(firstFoundNode);
             }
         } else {
             setSelectedNode(null);
         }
-    }, [debouncedSearchTerm, tree, searchNodes, findNodeById, onNodeSelect]);
+    }, [
+        debouncedSearchTerm,
+        treeData,
+        searchNodes,
+        findNodeById,
+        onNodeSelect,
+    ]);
 
     const clearSearch = useCallback(() => {
         setSearchTerm("");
@@ -206,7 +212,7 @@ export function TreeView({ onNodeSelect }: TreeViewProps) {
                 className="mb-4"
             />
             <div className="overflow-auto max-h-[calc(100vh-12rem)]">
-                {renderNode(tree)}
+                {renderNode(treeData)}
             </div>
         </div>
     );

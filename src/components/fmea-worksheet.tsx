@@ -2,7 +2,13 @@
 "use client";
 
 import React, { useCallback, useState, useEffect } from "react";
-import { TreeNode, FMEAData, FaultData } from "@/lib/types";
+import {
+    TreeNode,
+    FMEAData,
+    FaultData,
+    ParentTreeNode,
+    FaultTreeNode,
+} from "@/lib/types";
 import Breadcrumb from "@/components/Breadcrumb"; // Import the Breadcrumb component
 import { FunctionCard } from "@/components/function-card"; // Add this import
 
@@ -33,32 +39,40 @@ export function FMEAWorksheet({
 
     const getFunctionsAndFaults = (
         node: TreeNode | null
-    ): { functions: TreeNode[]; faults: Record<string, TreeNode[]> } => {
-        if (!node) return { functions: [], faults: {} };
+    ): {
+        functions: ParentTreeNode[];
+        faults: Record<string, FaultTreeNode[]>;
+    } => {
+        if (!node || node.type === "fault")
+            return { functions: [], faults: {} };
 
-        const functions: TreeNode[] = [];
-        const faults: Record<string, TreeNode[]> = {};
+        const functions: ParentTreeNode[] = [];
+        const faults: Record<string, FaultTreeNode[]> = {};
 
         if (node.id === "aircraft_system") {
             // For root level, collect only top-level functions
-            node.children?.forEach((child) => {
+            (node as ParentTreeNode).children.forEach((child) => {
                 if (child.type === "function") {
-                    functions.push(child);
-                    faults[child.id] =
-                        child.children?.filter(
-                            (grandchild) => grandchild.type === "fault"
-                        ) || [];
+                    functions.push(child as ParentTreeNode);
+                    faults[child.id] = (
+                        child as ParentTreeNode
+                    ).children.filter(
+                        (grandchild): grandchild is FaultTreeNode =>
+                            grandchild.type === "fault"
+                    );
                 }
             });
         } else {
             // For other levels, collect direct child functions
-            node.children?.forEach((child) => {
+            (node as ParentTreeNode).children.forEach((child) => {
                 if (child.type === "function") {
-                    functions.push(child);
-                    faults[child.id] =
-                        child.children?.filter(
-                            (grandchild) => grandchild.type === "fault"
-                        ) || [];
+                    functions.push(child as ParentTreeNode);
+                    faults[child.id] = (
+                        child as ParentTreeNode
+                    ).children.filter(
+                        (grandchild): grandchild is FaultTreeNode =>
+                            grandchild.type === "fault"
+                    );
                 }
             });
         }
@@ -69,7 +83,8 @@ export function FMEAWorksheet({
     const { functions, faults } = getFunctionsAndFaults(selectedNode);
 
     // Add this function to initialize fault data
-    const initializeFaultData = (fault: TreeNode): FaultData => ({
+    const initializeFaultData = (fault: FaultTreeNode): FaultData => ({
+        id: fault.id,
         failureMode: fault.name,
         effect: fault.effect || "",
         cause: fault.cause || "",
@@ -93,6 +108,7 @@ export function FMEAWorksheet({
             functions.forEach((func) => {
                 if (!updatedData[selectedNode.id].functions[func.id]) {
                     updatedData[selectedNode.id].functions[func.id] = {
+                        id: func.id, // Add this line
                         faults: {},
                     };
                     hasUpdates = true;
@@ -121,9 +137,7 @@ export function FMEAWorksheet({
         (
             functionId: string,
             faultId: string,
-            updatedFaultData: Partial<
-                FMEAData[string]["functions"][string]["faults"][string]
-            >
+            updatedFaultData: Partial<FaultData>
         ) => {
             const componentId = selectedNode?.id ?? "";
             const updatedData = { ...data };
@@ -132,7 +146,10 @@ export function FMEAWorksheet({
                 updatedData[componentId] = { functions: {} };
             }
             if (!updatedData[componentId].functions[functionId]) {
-                updatedData[componentId].functions[functionId] = { faults: {} };
+                updatedData[componentId].functions[functionId] = {
+                    id: functionId,
+                    faults: {},
+                };
             }
             updatedData[componentId].functions[functionId].faults[faultId] = {
                 ...updatedData[componentId].functions[functionId].faults[
@@ -145,6 +162,12 @@ export function FMEAWorksheet({
         [selectedNode?.id, data, onDataChange]
     );
 
+    // Add this function to get the full path
+    const getFullPath = useCallback(() => {
+        if (!selectedNode) return "FMEA Worksheet";
+        return getNodePath(selectedNode);
+    }, [selectedNode, getNodePath]);
+
     return (
         <div className="bg-gray-100 p-6 rounded-lg relative">
             <div
@@ -152,13 +175,7 @@ export function FMEAWorksheet({
                     scrolled ? "shadow-md" : ""
                 }`}
             >
-                <h2 className="text-2xl font-bold">
-                    {selectedNode ? (
-                        <Breadcrumb path={getNodePath(selectedNode)} />
-                    ) : (
-                        "FMEA Worksheet"
-                    )}
-                </h2>
+                <Breadcrumb path={getFullPath()} />
             </div>
             <div className="space-y-6 mt-6">
                 {functions.map((func) => (

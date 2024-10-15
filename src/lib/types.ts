@@ -1,8 +1,19 @@
-export interface TreeNode {
+// Base interface for all node types
+export interface BaseTreeNode {
     id: string;
     name: string;
-    children?: TreeNode[];
     type: "system" | "subsystem" | "component" | "function" | "fault";
+}
+
+// Interface for nodes that can have children
+export interface ParentTreeNode extends BaseTreeNode {
+    type: "system" | "subsystem" | "component" | "function";
+    children: TreeNode[];
+}
+
+// Interface for fault nodes
+export interface FaultTreeNode extends BaseTreeNode {
+    type: "fault";
     effect?: string;
     cause?: string;
     severity?: number;
@@ -11,17 +22,22 @@ export interface TreeNode {
     controls?: string;
 }
 
+// Union type for all possible node types
+export type TreeNode = ParentTreeNode | FaultTreeNode;
+
 export interface FaultData {
-    failureMode?: string;
-    effect?: string;
-    severity?: number; // Changed from string to number
-    cause?: string;
-    occurrence?: number;
-    controls?: string;
-    detection?: number;
+    id: string;
+    failureMode: string;
+    effect: string;
+    severity: number;
+    cause: string;
+    occurrence: number;
+    controls: string;
+    detection: number;
 }
 
 export interface FunctionData {
+    id: string;
     faults: Record<string, FaultData>;
 }
 
