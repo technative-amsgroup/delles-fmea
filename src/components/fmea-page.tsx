@@ -5,7 +5,6 @@ import { TreeView } from "@/components/tree-view";
 import { TreeNode, ParentTreeNode } from "@/lib/types"; // Import TreeNode and ParentNode from types
 import { FMEAWorksheet } from "@/components/fmea-worksheet";
 
-import { HeaderToolbar } from "@/components/header-toolbar";
 import { FMEARow } from "@/lib/types"; // Import FMEARow from types
 import { initialTree } from "@/lib/initial-tree-data"; // Add this import
 import { convertXMLToJSON } from "@/lib/xml-to-json-converter"; // Add this import
@@ -79,7 +78,6 @@ export function FmeaPage() {
 
     return (
         <div className="flex flex-col h-screen">
-            <HeaderToolbar />
             <div className="flex items-center justify-between p-4 bg-gray-200">
                 <h1 className="text-2xl font-bold">FMEA Analysis</h1>
                 <div>

@@ -309,9 +309,6 @@ function ActionList({ title, actions }: { title: string; actions: string[] }) {
                             className="text-sm text-gray-600 flex items-center justify-between"
                         >
                             <span>{action}</span>
-                            <Badge variant="outline" className="text-xs">
-                                Partially Effective
-                            </Badge>
                         </li>
                     ))}
                 </ul>
