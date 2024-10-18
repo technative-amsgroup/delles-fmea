@@ -90,6 +90,11 @@ export const FunctionCard = React.memo(function FunctionCard({
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
+                <div className="px-4 py-2 bg-gray-100 border-b border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-700">
+                        Faults / Failure Modes
+                    </h3>
+                </div>
                 <ul className="divide-y divide-gray-200">
                     {sortedFaults.map((fault) => (
                         <li key={fault.id}>
@@ -103,9 +108,14 @@ export const FunctionCard = React.memo(function FunctionCard({
                                             {fault.faultData.failureMode ||
                                                 fault.name}
                                         </h3>
-                                        <p className="mt-1 text-sm text-gray-500 truncate">
-                                            {fault.faultData.effect ||
-                                                "No effect specified"}
+                                        <p className="mt-2 text-xs text-gray-600">
+                                            <span className="font-medium">
+                                                Effect:{" "}
+                                            </span>
+                                            <span className="text-gray-500">
+                                                {fault.faultData.effect ||
+                                                    "No effect specified"}
+                                            </span>
                                         </p>
                                     </div>
                                     <div className="flex items-center">

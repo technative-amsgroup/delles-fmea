@@ -29,7 +29,8 @@ export const initialTree: TreeNode = {
                                     severity: 9,
                                     occurrence: 4,
                                     detection: 3,
-                                    controls: "Fuel pressure monitoring",
+                                    controls:
+                                        "Regular fuel system inspections\nFuel filter maintenance\nFuel pressure monitoring\nEmergency fuel pump system",
                                 } as FaultTreeNode,
                                 {
                                     id: "compressor_failure",
@@ -40,7 +41,8 @@ export const initialTree: TreeNode = {
                                     severity: 6,
                                     occurrence: 3,
                                     detection: 5,
-                                    controls: "Regular inspections",
+                                    controls:
+                                        "Regular inspections\nFOD prevention training\nCompressor health monitoring\nVibration analysis",
                                 } as FaultTreeNode,
                             ],
                         },
@@ -58,7 +60,8 @@ export const initialTree: TreeNode = {
                                     severity: 7,
                                     occurrence: 3,
                                     detection: 2,
-                                    controls: "Redundant sensors",
+                                    controls:
+                                        "Redundant sensors\nRegular calibration\nFail-safe mechanisms\nPilot override capability",
                                 } as FaultTreeNode,
                             ],
                         },
@@ -133,7 +136,8 @@ export const initialTree: TreeNode = {
                                     severity: 6,
                                     occurrence: 5,
                                     detection: 2,
-                                    controls: "Battery charge monitoring",
+                                    controls:
+                                        "Battery charge monitoring\nLoad shedding procedures\nRedundant power sources\nRegular battery health checks",
                                 } as FaultTreeNode,
                                 {
                                     id: "short_circuit",
@@ -144,7 +148,8 @@ export const initialTree: TreeNode = {
                                     severity: 9,
                                     occurrence: 3,
                                     detection: 4,
-                                    controls: "Circuit breakers",
+                                    controls:
+                                        "Circuit breakers\nRegular wiring inspections\nInsulation resistance testing\nFault current limiters",
                                 } as FaultTreeNode,
                             ],
                         },
