@@ -6,6 +6,7 @@ import {
     ChevronDownIcon,
     Pencil,
     PlusCircle,
+    Trash2,
 } from "lucide-react";
 import {
     ParentTreeNode,
@@ -19,6 +20,14 @@ import { cn } from "@/lib/utils";
 import { FaultCardComponent } from "@/components/fault-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface FunctionCardProps {
     func: ParentTreeNode;
@@ -35,6 +44,7 @@ interface FunctionCardProps {
         functionId: string,
         newFault: { name: string; effect: string }
     ) => void;
+    onDeleteFault: (functionId: string, faultId: string) => void; // Add this prop
 }
 
 export const FunctionCard = React.memo(function FunctionCard({
@@ -45,6 +55,7 @@ export const FunctionCard = React.memo(function FunctionCard({
     onFaultDataChange,
     onFunctionNameChange,
     onAddFault,
+    onDeleteFault,
 }: FunctionCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedData, setEditedData] = useState({
@@ -56,6 +67,10 @@ export const FunctionCard = React.memo(function FunctionCard({
     const [validationErrors, setValidationErrors] = useState<{
         name?: string;
     }>({});
+    const [deletingFault, setDeletingFault] = useState<{
+        id: string;
+        name: string;
+    } | null>(null);
 
     useEffect(() => {
         setIsAddingFault(false);
@@ -130,230 +145,309 @@ export const FunctionCard = React.memo(function FunctionCard({
         setIsAddingFault(false);
     };
 
-    return (
-        <Card className="mb-6 overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 pb-4">
-                <CardTitle className="flex items-center justify-between text-xl">
-                    <div className="flex items-center space-x-3">
-                        <FunctionSquareIcon className="h-7 w-7 text-primary/90 transition-transform duration-200 hover:scale-105" />
-                        {isEditing ? (
-                            <Input
-                                value={editedData.name}
-                                onChange={(e) =>
-                                    setEditedData({ name: e.target.value })
-                                }
-                                className="max-w-md border-2 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
-                                autoFocus
-                            />
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <span className="text-gray-800 font-semibold">
-                                    {editedData.name}
-                                </span>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setIsEditing(true)}
-                                    className="transition-all duration-200 hover:bg-gray-100"
-                                >
-                                    <Pencil className="h-4 w-4 text-gray-500" />
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {isEditing ? (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleCancel}
-                                    className="transition-all duration-200 hover:bg-gray-100"
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    onClick={handleSave}
-                                    className="shadow-sm transition-all duration-200 hover:shadow-md"
-                                >
-                                    Save
-                                </Button>
-                            </>
-                        ) : (
-                            <Badge
-                                className={cn(
-                                    "text-white shadow-sm transition-all duration-200 px-3 py-1.5 text-sm",
-                                    getRiskBadgeColor(overallRisk.level)
-                                )}
-                            >
-                                {overallRisk.level} Risk
-                            </Badge>
-                        )}
-                    </div>
-                </CardTitle>
-            </CardHeader>
+    const handleDeleteClick = (
+        e: React.MouseEvent,
+        faultId: string,
+        faultName: string
+    ) => {
+        e.stopPropagation();
+        setDeletingFault({ id: faultId, name: faultName });
+    };
 
-            <CardContent className="p-0">
-                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                        Faults / Failure Modes
-                    </h3>
-                    {isAddingFault ? (
-                        <div className="space-y-3 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                            <div className="flex gap-3">
-                                <div className="flex-1">
-                                    <Input
-                                        placeholder="Fault name *"
-                                        value={newFault.name}
-                                        onChange={(e) => {
-                                            setNewFault((prev) => ({
-                                                ...prev,
-                                                name: e.target.value,
-                                            }));
-                                            // Clear validation error when user types
-                                            if (e.target.value.trim()) {
-                                                setValidationErrors({});
-                                            }
-                                        }}
-                                        className={cn(
-                                            "h-9 text-sm border-gray-200 focus:border-primary/30 focus:ring-primary/20",
-                                            validationErrors.name &&
-                                                "border-red-500 focus:border-red-500 focus:ring-red-200"
-                                        )}
-                                    />
-                                    {validationErrors.name && (
-                                        <p className="text-xs text-red-500 mt-1">
-                                            {validationErrors.name}
-                                        </p>
-                                    )}
+    const handleDeleteConfirm = () => {
+        if (deletingFault) {
+            onDeleteFault(func.id, deletingFault.id);
+            setDeletingFault(null);
+        }
+    };
+
+    return (
+        <>
+            <Card className="mb-6 overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 pb-4">
+                    <CardTitle className="flex items-center justify-between text-xl">
+                        <div className="flex items-center space-x-3">
+                            <FunctionSquareIcon className="h-7 w-7 text-primary/90 transition-transform duration-200 hover:scale-105" />
+                            {isEditing ? (
+                                <Input
+                                    value={editedData.name}
+                                    onChange={(e) =>
+                                        setEditedData({ name: e.target.value })
+                                    }
+                                    className="max-w-md border-2 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
+                                    autoFocus
+                                />
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-800 font-semibold">
+                                        {editedData.name}
+                                    </span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsEditing(true)}
+                                        className="transition-all duration-200 hover:bg-gray-100"
+                                    >
+                                        <Pencil className="h-4 w-4 text-gray-500" />
+                                    </Button>
                                 </div>
-                                <div className="flex-1">
-                                    <Input
-                                        placeholder="Effect (optional)"
-                                        value={newFault.effect}
-                                        onChange={(e) =>
-                                            setNewFault((prev) => ({
-                                                ...prev,
-                                                effect: e.target.value,
-                                            }))
-                                        }
-                                        className="h-9 text-sm border-gray-200 focus:border-primary/30 focus:ring-primary/20"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                        setNewFault({ name: "", effect: "" });
-                                        setIsAddingFault(false);
-                                        setValidationErrors({});
-                                    }}
-                                    className="h-8 px-3 text-sm hover:bg-gray-100"
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    onClick={handleAddNewFault}
-                                    disabled={!newFault.name.trim()}
-                                    className={cn(
-                                        "h-8 px-3 text-sm bg-primary/90 hover:bg-primary shadow-sm",
-                                        !newFault.name.trim() &&
-                                            "opacity-50 cursor-not-allowed"
-                                    )}
-                                >
-                                    Add New Fault
-                                </Button>
-                            </div>
+                            )}
                         </div>
-                    ) : (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsAddingFault(true)}
-                            className="w-40 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
-                        >
-                            <PlusCircle className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
-                            Add New Fault
-                        </Button>
-                    )}
-                </div>
-                <div className="p-4 bg-gray-50">
-                    <ul className="space-y-2">
-                        {sortedFaults.map((fault) => (
-                            <li
-                                key={fault.id}
-                                className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
-                            >
-                                <div
-                                    className="p-4 cursor-pointer transition-all duration-200"
-                                    onClick={() => toggleFault(fault.id)}
+                        <div className="flex items-center gap-2">
+                            {isEditing ? (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleCancel}
+                                        className="transition-all duration-200 hover:bg-gray-100"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={handleSave}
+                                        className="shadow-sm transition-all duration-200 hover:shadow-md"
+                                    >
+                                        Save
+                                    </Button>
+                                </>
+                            ) : (
+                                <Badge
+                                    className={cn(
+                                        "text-white shadow-sm transition-all duration-200 px-3 py-1.5 text-sm",
+                                        getRiskBadgeColor(overallRisk.level)
+                                    )}
                                 >
-                                    <div className="flex items-center justify-between group">
-                                        <div className="space-y-1.5 flex-1 mr-4">
-                                            <h3 className="text-sm font-medium text-gray-900 group-hover:text-gray-700 transition-colors duration-200">
-                                                {fault.faultData.failureMode ||
-                                                    fault.name}
-                                            </h3>
-                                            <p className="text-xs text-gray-600">
-                                                <span className="font-medium">
-                                                    Effect:{" "}
-                                                </span>
-                                                <span className="text-gray-500">
-                                                    {fault.faultData.effect ||
-                                                        "No effect specified"}
-                                                </span>
+                                    {overallRisk.level} Risk
+                                </Badge>
+                            )}
+                        </div>
+                    </CardTitle>
+                </CardHeader>
+
+                <CardContent className="p-0">
+                    <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                            Faults / Failure Modes
+                        </h3>
+                        {isAddingFault ? (
+                            <div className="space-y-3 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                                <div className="flex gap-3">
+                                    <div className="flex-1">
+                                        <Input
+                                            placeholder="Fault name *"
+                                            value={newFault.name}
+                                            onChange={(e) => {
+                                                setNewFault((prev) => ({
+                                                    ...prev,
+                                                    name: e.target.value,
+                                                }));
+                                                // Clear validation error when user types
+                                                if (e.target.value.trim()) {
+                                                    setValidationErrors({});
+                                                }
+                                            }}
+                                            className={cn(
+                                                "h-9 text-sm border-gray-200 focus:border-primary/30 focus:ring-primary/20",
+                                                validationErrors.name &&
+                                                    "border-red-500 focus:border-red-500 focus:ring-red-200"
+                                            )}
+                                        />
+                                        {validationErrors.name && (
+                                            <p className="text-xs text-red-500 mt-1">
+                                                {validationErrors.name}
                                             </p>
-                                        </div>
-                                        <div className="flex items-center shrink-0">
-                                            <Badge
-                                                className={cn(
-                                                    getRPNBadgeColor(fault.rpn),
-                                                    "mr-3 px-3 py-1.5 text-sm font-medium tracking-wider shadow-sm w-24 text-center",
-                                                    "transition-all duration-200"
-                                                )}
-                                            >
-                                                RPN: {fault.rpn}
-                                            </Badge>
-                                            <div className="transition-transform duration-200 text-gray-400 group-hover:text-gray-600">
-                                                {openFaultId === fault.id ? (
-                                                    <ChevronDownIcon className="h-5 w-5" />
-                                                ) : (
-                                                    <ChevronRightIcon className="h-5 w-5" />
-                                                )}
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        <Input
+                                            placeholder="Effect (optional)"
+                                            value={newFault.effect}
+                                            onChange={(e) =>
+                                                setNewFault((prev) => ({
+                                                    ...prev,
+                                                    effect: e.target.value,
+                                                }))
+                                            }
+                                            className="h-9 text-sm border-gray-200 focus:border-primary/30 focus:ring-primary/20"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                            setNewFault({
+                                                name: "",
+                                                effect: "",
+                                            });
+                                            setIsAddingFault(false);
+                                            setValidationErrors({});
+                                        }}
+                                        className="h-8 px-3 text-sm hover:bg-gray-100"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={handleAddNewFault}
+                                        disabled={!newFault.name.trim()}
+                                        className={cn(
+                                            "h-8 px-3 text-sm bg-primary/90 hover:bg-primary shadow-sm",
+                                            !newFault.name.trim() &&
+                                                "opacity-50 cursor-not-allowed"
+                                        )}
+                                    >
+                                        Add New Fault
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsAddingFault(true)}
+                                className="w-40 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
+                            >
+                                <PlusCircle className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
+                                Add New Fault
+                            </Button>
+                        )}
+                    </div>
+                    <div className="p-4 bg-gray-50">
+                        <ul className="space-y-2">
+                            {sortedFaults.map((fault) => (
+                                <li
+                                    key={fault.id}
+                                    className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                                >
+                                    <div
+                                        className="p-4 cursor-pointer transition-all duration-200"
+                                        onClick={() => toggleFault(fault.id)}
+                                    >
+                                        <div className="flex items-center justify-between group">
+                                            <div className="space-y-1.5 flex-1 mr-4">
+                                                <h3 className="text-sm font-medium text-gray-900 group-hover:text-gray-700 transition-colors duration-200">
+                                                    {fault.faultData
+                                                        .failureMode ||
+                                                        fault.name}
+                                                </h3>
+                                                <p className="text-xs text-gray-600">
+                                                    <span className="font-medium">
+                                                        Effect:{" "}
+                                                    </span>
+                                                    <span className="text-gray-500">
+                                                        {fault.faultData
+                                                            .effect ||
+                                                            "No effect specified"}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center shrink-0 space-x-2">
+                                                <Badge
+                                                    className={cn(
+                                                        getRPNBadgeColor(
+                                                            fault.rpn
+                                                        ),
+                                                        "mr-3 px-3 py-1.5 text-sm font-medium tracking-wider shadow-sm w-24 text-center",
+                                                        "transition-all duration-200"
+                                                    )}
+                                                >
+                                                    RPN: {fault.rpn}
+                                                </Badge>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) =>
+                                                        handleDeleteClick(
+                                                            e,
+                                                            fault.id,
+                                                            fault.faultData
+                                                                .failureMode ||
+                                                                fault.name
+                                                        )
+                                                    }
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors duration-200"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                                <div className="transition-transform duration-200 text-gray-400 group-hover:text-gray-600">
+                                                    {openFaultId ===
+                                                    fault.id ? (
+                                                        <ChevronDownIcon className="h-5 w-5" />
+                                                    ) : (
+                                                        <ChevronRightIcon className="h-5 w-5" />
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div
-                                    className={cn(
-                                        "transition-all duration-300 ease-in-out",
-                                        openFaultId === fault.id
-                                            ? "max-h-[1000px] opacity-100"
-                                            : "max-h-0 opacity-0 overflow-hidden"
-                                    )}
-                                >
-                                    {openFaultId === fault.id && (
-                                        <FaultCardComponent
-                                            fault={fault}
-                                            functionId={func.id}
-                                            componentId={componentId}
-                                            faultData={fault.faultData}
-                                            onFaultDataChange={
-                                                handleFaultDataChange
-                                            }
-                                        />
-                                    )}
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </CardContent>
-        </Card>
+                                    <div
+                                        className={cn(
+                                            "transition-all duration-300 ease-in-out",
+                                            openFaultId === fault.id
+                                                ? "max-h-[1000px] opacity-100"
+                                                : "max-h-0 opacity-0 overflow-hidden"
+                                        )}
+                                    >
+                                        {openFaultId === fault.id && (
+                                            <FaultCardComponent
+                                                fault={fault}
+                                                functionId={func.id}
+                                                componentId={componentId}
+                                                faultData={fault.faultData}
+                                                onFaultDataChange={
+                                                    handleFaultDataChange
+                                                }
+                                                onDeleteFault={(faultId) =>
+                                                    onDeleteFault(
+                                                        func.id,
+                                                        faultId
+                                                    )
+                                                }
+                                            />
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Dialog
+                open={deletingFault !== null}
+                onOpenChange={() => setDeletingFault(null)}
+            >
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Delete Fault</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete the fault &ldquo;
+                            {deletingFault?.name}&rdquo;? This action cannot be
+                            undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeletingFault(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteConfirm}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 });
 

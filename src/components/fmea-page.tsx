@@ -342,6 +342,59 @@ export function FmeaPage() {
         return null;
     };
 
+    const handleDeleteFault = (
+        componentId: string,
+        functionId: string,
+        faultId: string
+    ) => {
+        // Update tree data
+        const updateTreeData = (node: TreeNode): TreeNode => {
+            if (node.id === functionId) {
+                return {
+                    ...node,
+                    children: (node as ParentTreeNode).children?.filter(
+                        (child) => child.id !== faultId
+                    ),
+                } as ParentTreeNode;
+            }
+
+            if ("children" in node) {
+                return {
+                    ...node,
+                    children: node.children?.map(updateTreeData),
+                } as ParentTreeNode;
+            }
+
+            return node;
+        };
+
+        // Update both tree and FMEA data
+        const updatedTree = updateTreeData(treeData);
+        setTreeData(updatedTree);
+
+        // Update FMEA data
+        setFMEAData((prevData) => {
+            const updatedData = { ...prevData };
+            if (updatedData[componentId]?.functions[functionId]?.faults) {
+                delete updatedData[componentId].functions[functionId].faults[
+                    faultId
+                ];
+            }
+            return updatedData;
+        });
+
+        // Update selected node if necessary
+        if (selectedNode) {
+            const updatedSelectedNode = findNodeById(
+                updatedTree,
+                selectedNode.id
+            );
+            if (updatedSelectedNode) {
+                setSelectedNode(updatedSelectedNode);
+            }
+        }
+    };
+
     return (
         <div className="flex flex-col h-screen">
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white">
@@ -401,6 +454,7 @@ export function FmeaPage() {
                                 onFunctionNameChange={updateNodeName}
                                 onAddFault={handleAddFault}
                                 onAddFunction={handleAddFunction}
+                                onDeleteFault={handleDeleteFault}
                             />
                         </div>
                     </>

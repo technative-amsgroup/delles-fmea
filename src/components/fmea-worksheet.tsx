@@ -28,6 +28,11 @@ interface FMEAWorksheetProps {
         newFault: { name: string; effect: string }
     ) => void;
     onAddFunction: (componentId: string, newFunction: { name: string }) => void; // Add this prop
+    onDeleteFault: (
+        componentId: string,
+        functionId: string,
+        faultId: string
+    ) => void; // Add this prop
 }
 
 export function FMEAWorksheet({
@@ -38,6 +43,7 @@ export function FMEAWorksheet({
     onFunctionNameChange,
     onAddFault,
     onAddFunction, // Add this prop
+    onDeleteFault,
 }: FMEAWorksheetProps) {
     const [scrolled, setScrolled] = useState(false);
     const [isAddingFunction, setIsAddingFunction] = useState(false);
@@ -289,9 +295,7 @@ export function FMEAWorksheet({
                         {functions.length > 0 ? (
                             functions.map((func) => (
                                 <FunctionCard
-                                    key={`${func.id}_${
-                                        faults[func.id]?.length || 0
-                                    }`}
+                                    key={func.id}
                                     func={func}
                                     faults={faults[func.id]}
                                     componentId={selectedNode?.id ?? ""}
@@ -305,6 +309,13 @@ export function FMEAWorksheet({
                                             selectedNode?.id ?? "",
                                             functionId,
                                             newFault
+                                        )
+                                    }
+                                    onDeleteFault={(functionId, faultId) =>
+                                        onDeleteFault(
+                                            selectedNode?.id ?? "",
+                                            functionId,
+                                            faultId
                                         )
                                     }
                                 />

@@ -12,6 +12,7 @@ import {
     Eye,
     ChevronDown,
     ChevronUp,
+    Trash2,
 } from "lucide-react";
 import {
     Tooltip,
@@ -33,6 +34,7 @@ interface FaultCardProps {
         faultId: string,
         updatedFaultData: Partial<FaultData>
     ) => void;
+    onDeleteFault?: (faultId: string) => void;
 }
 
 export function FaultCardComponent({
@@ -40,6 +42,7 @@ export function FaultCardComponent({
     functionId,
     faultData,
     onFaultDataChange,
+    onDeleteFault,
 }: FaultCardProps) {
     const [isControlsExpanded, setIsControlsExpanded] = React.useState(false);
     const [isEditing, setIsEditing] = React.useState(false);
@@ -134,13 +137,25 @@ export function FaultCardComponent({
                                     </Button>
                                 </>
                             ) : (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setIsEditing(true)}
-                                >
-                                    Edit
-                                </Button>
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() =>
+                                            onDeleteFault?.(fault.id)
+                                        }
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setIsEditing(true)}
+                                    >
+                                        Edit
+                                    </Button>
+                                </>
                             )}
                         </div>
                     </div>
