@@ -277,15 +277,20 @@ export function FMEAWorksheet({
                     (selectedNode.type === "system" ||
                         selectedNode.type === "subsystem" ||
                         selectedNode.type === "component") && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsAddingFunction(true)}
-                            className="w-44 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
-                        >
-                            <PlusCircle className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
-                            Add New Function
-                        </Button>
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                                Functions
+                            </h3>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsAddingFunction(true)}
+                                className="w-44 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
+                            >
+                                <PlusCircle className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
+                                Add New Function
+                            </Button>
+                        </div>
                     )}
             </div>
 

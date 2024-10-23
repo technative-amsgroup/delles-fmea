@@ -15,6 +15,9 @@ export function FmeaPage() {
     const [activeTab, setActiveTab] = useState<"worksheet" | "analysis">(
         "worksheet"
     );
+    const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
+        () => new Set()
+    );
 
     // Move the traverseTree function outside of generateFMEAData
     const traverseTree = useCallback(
@@ -527,6 +530,45 @@ export function FmeaPage() {
         }
     };
 
+    const handleAddChild = (
+        parentId: string,
+        newNode: { name: string; type: "system" | "subsystem" | "component" }
+    ) => {
+        const newNodeId = `${newNode.type}_${Date.now()}`;
+
+        const updateTreeData = (node: TreeNode): TreeNode => {
+            if (node.id === parentId) {
+                return {
+                    ...node,
+                    children: [
+                        ...(node.children || []),
+                        {
+                            id: newNodeId,
+                            name: newNode.name,
+                            type: newNode.type,
+                            children: [],
+                        } as ParentTreeNode,
+                    ],
+                } as ParentTreeNode;
+            }
+
+            if ("children" in node) {
+                return {
+                    ...node,
+                    children: node.children?.map(updateTreeData),
+                } as ParentTreeNode;
+            }
+
+            return node;
+        };
+
+        const updatedTree = updateTreeData(treeData);
+        setTreeData(updatedTree);
+
+        // Expand the parent node to show the new child
+        setExpandedNodes((prev: Set<string>) => new Set([...prev, parentId]));
+    };
+
     return (
         <div className="flex flex-col h-screen">
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white">
@@ -576,7 +618,20 @@ export function FmeaPage() {
                                 treeData={treeData}
                                 onNodeNameChange={handleNodeNameChange}
                                 onDeleteNode={handleDeleteNode}
-                                selectedNodeId={selectedNode?.id} // Add this prop
+                                selectedNodeId={selectedNode?.id}
+                                onAddChild={handleAddChild}
+                                expandedNodes={expandedNodes} // This will now always be a Set
+                                onToggleExpand={(nodeId: string) => {
+                                    setExpandedNodes((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(nodeId)) {
+                                            next.delete(nodeId);
+                                        } else {
+                                            next.add(nodeId);
+                                        }
+                                        return next;
+                                    });
+                                }}
                             />
                         </div>
                         <div className="w-3/4 p-4 overflow-auto">
