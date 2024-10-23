@@ -45,6 +45,7 @@ interface FunctionCardProps {
         newFault: { name: string; effect: string }
     ) => void;
     onDeleteFault: (functionId: string, faultId: string) => void; // Add this prop
+    onDeleteFunction: (functionId: string) => void; // Make this required
 }
 
 export const FunctionCard = React.memo(function FunctionCard({
@@ -56,6 +57,7 @@ export const FunctionCard = React.memo(function FunctionCard({
     onFunctionNameChange,
     onAddFault,
     onDeleteFault,
+    onDeleteFunction, // Add this prop
 }: FunctionCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedData, setEditedData] = useState({
@@ -71,6 +73,7 @@ export const FunctionCard = React.memo(function FunctionCard({
         id: string;
         name: string;
     } | null>(null);
+    const [isDeletingFunction, setIsDeletingFunction] = useState(false); // Add this state
 
     useEffect(() => {
         setIsAddingFault(false);
@@ -178,19 +181,9 @@ export const FunctionCard = React.memo(function FunctionCard({
                                     autoFocus
                                 />
                             ) : (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-gray-800 font-semibold">
-                                        {editedData.name}
-                                    </span>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setIsEditing(true)}
-                                        className="transition-all duration-200 hover:bg-gray-100"
-                                    >
-                                        <Pencil className="h-4 w-4 text-gray-500" />
-                                    </Button>
-                                </div>
+                                <span className="text-gray-800 font-semibold">
+                                    {editedData.name}
+                                </span>
                             )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -213,14 +206,34 @@ export const FunctionCard = React.memo(function FunctionCard({
                                     </Button>
                                 </>
                             ) : (
-                                <Badge
-                                    className={cn(
-                                        "text-white shadow-sm transition-all duration-200 px-3 py-1.5 text-sm",
-                                        getRiskBadgeColor(overallRisk.level)
-                                    )}
-                                >
-                                    {overallRisk.level} Risk
-                                </Badge>
+                                <>
+                                    <Badge
+                                        className={cn(
+                                            "text-white shadow-sm transition-all duration-200 px-3 py-1.5 text-sm",
+                                            getRiskBadgeColor(overallRisk.level)
+                                        )}
+                                    >
+                                        {overallRisk.level} Risk
+                                    </Badge>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                            setIsDeletingFunction(true)
+                                        }
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors duration-200"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsEditing(true)}
+                                        className="transition-all duration-200 hover:bg-gray-100"
+                                    >
+                                        <Pencil className="h-4 w-4 text-gray-500" />
+                                    </Button>
+                                </>
                             )}
                         </div>
                     </CardTitle>
@@ -426,8 +439,8 @@ export const FunctionCard = React.memo(function FunctionCard({
                         <DialogTitle>Delete Fault</DialogTitle>
                         <DialogDescription>
                             Are you sure you want to delete the fault &ldquo;
-                            {deletingFault?.name}&rdquo;? This action cannot be
-                            undone.
+                            <strong>{deletingFault?.name}</strong>&rdquo;? This
+                            action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
@@ -440,6 +453,45 @@ export const FunctionCard = React.memo(function FunctionCard({
                         <Button
                             variant="destructive"
                             onClick={handleDeleteConfirm}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Delete Function Dialog */}
+            <Dialog
+                open={isDeletingFunction}
+                onOpenChange={setIsDeletingFunction}
+            >
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Delete Function</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete the function{" "}
+                            <strong>
+                                &ldquo;
+                                {func.name}&rdquo;
+                            </strong>
+                            ? This action cannot be undone and will delete{" "}
+                            <strong>all associated faults.</strong>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDeletingFunction(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                onDeleteFunction(func.id);
+                                setIsDeletingFunction(false);
+                            }}
                             className="bg-red-600 hover:bg-red-700"
                         >
                             Delete

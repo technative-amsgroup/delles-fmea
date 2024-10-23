@@ -23,6 +23,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface FaultCardProps {
     fault: FaultTreeNode;
@@ -55,6 +63,7 @@ export function FaultCardComponent({
         detection: faultData.detection || 1,
         controls: faultData.controls || "",
     });
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
     // Add this useEffect to sync editedData with faultData props
     React.useEffect(() => {
@@ -100,6 +109,16 @@ export function FaultCardComponent({
         setIsEditing(false);
     };
 
+    const handleDeleteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = () => {
+        onDeleteFault?.(fault.id);
+        setIsDeleteDialogOpen(false);
+    };
+
     return (
         <TooltipProvider>
             <Card className="w-full overflow-hidden transition-all hover:shadow-lg">
@@ -142,9 +161,7 @@ export function FaultCardComponent({
                                         variant="outline"
                                         size="sm"
                                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        onClick={() =>
-                                            onDeleteFault?.(fault.id)
-                                        }
+                                        onClick={handleDeleteClick}
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -208,6 +225,38 @@ export function FaultCardComponent({
                     />
                 </CardContent>
             </Card>
+
+            {/* Add Delete Confirmation Dialog */}
+            <Dialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+            >
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Delete Fault</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete the fault &ldquo;
+                            <strong>{editedData.failureMode}</strong>&rdquo;?
+                            This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteConfirm}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </TooltipProvider>
     );
 }

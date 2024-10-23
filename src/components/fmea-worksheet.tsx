@@ -33,6 +33,7 @@ interface FMEAWorksheetProps {
         functionId: string,
         faultId: string
     ) => void; // Add this prop
+    onDeleteFunction: (componentId: string, functionId: string) => void;
 }
 
 export function FMEAWorksheet({
@@ -44,6 +45,7 @@ export function FMEAWorksheet({
     onAddFault,
     onAddFunction, // Add this prop
     onDeleteFault,
+    onDeleteFunction,
 }: FMEAWorksheetProps) {
     const [scrolled, setScrolled] = useState(false);
     const [isAddingFunction, setIsAddingFunction] = useState(false);
@@ -316,6 +318,12 @@ export function FMEAWorksheet({
                                             selectedNode?.id ?? "",
                                             functionId,
                                             faultId
+                                        )
+                                    }
+                                    onDeleteFunction={(functionId) =>
+                                        onDeleteFunction(
+                                            selectedNode?.id ?? "",
+                                            functionId
                                         )
                                     }
                                 />
