@@ -18,6 +18,11 @@ interface FMEAWorksheetProps {
     onDataChange: (newData: FMEAData) => void;
     getNodePath: (node: TreeNode | null) => string;
     onFunctionNameChange?: (functionId: string, newName: string) => void; // Add this prop
+    onAddFault: (
+        componentId: string,
+        functionId: string,
+        newFault: { name: string; effect: string }
+    ) => void;
 }
 
 export function FMEAWorksheet({
@@ -26,6 +31,7 @@ export function FMEAWorksheet({
     onDataChange,
     getNodePath,
     onFunctionNameChange,
+    onAddFault,
 }: FMEAWorksheetProps) {
     const [scrolled, setScrolled] = useState(false);
 
@@ -208,13 +214,20 @@ export function FMEAWorksheet({
                 {functions.length > 0 ? (
                     functions.map((func) => (
                         <FunctionCard
-                            key={func.id}
+                            key={`${func.id}_${faults[func.id]?.length || 0}`}
                             func={func}
                             faults={faults[func.id]}
                             componentId={selectedNode?.id ?? ""}
                             data={data}
                             onFaultDataChange={handleFaultDataChange}
                             onFunctionNameChange={handleFunctionNameChange}
+                            onAddFault={(functionId, newFault) =>
+                                onAddFault(
+                                    selectedNode?.id ?? "",
+                                    functionId,
+                                    newFault
+                                )
+                            }
                         />
                     ))
                 ) : (

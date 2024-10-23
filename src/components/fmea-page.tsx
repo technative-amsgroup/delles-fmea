@@ -183,6 +183,102 @@ export function FmeaPage() {
         setTreeData((prevTreeData) => updateTreeNode(prevTreeData));
     };
 
+    const handleAddFault = (
+        componentId: string,
+        functionId: string,
+        newFault: { name: string; effect: string }
+    ) => {
+        const faultId = `fault_${Date.now()}`;
+
+        // First, find and update the function node in the tree
+        const findAndUpdateFunction = (node: TreeNode): TreeNode => {
+            if (node.type === "function" && node.id === functionId) {
+                const newFaultNode: FaultTreeNode = {
+                    id: faultId,
+                    name: newFault.name,
+                    type: "fault",
+                    effect: newFault.effect,
+                };
+
+                const updatedNode: ParentTreeNode = {
+                    ...node,
+                    children: [...(node.children || []), newFaultNode],
+                };
+
+                return updatedNode;
+            }
+
+            if ("children" in node) {
+                return {
+                    ...node,
+                    children: node.children?.map(findAndUpdateFunction),
+                } as ParentTreeNode;
+            }
+
+            return node;
+        };
+
+        // Update both tree and FMEA data
+        const updatedTree = findAndUpdateFunction(treeData);
+        setTreeData(updatedTree);
+
+        // Update FMEA data
+        setFMEAData((prevData) => {
+            const updatedData = { ...prevData };
+            if (!updatedData[componentId]) {
+                updatedData[componentId] = { functions: {} };
+            }
+            if (!updatedData[componentId].functions[functionId]) {
+                updatedData[componentId].functions[functionId] = {
+                    id: functionId,
+                    faults: {},
+                };
+            }
+
+            updatedData[componentId].functions[functionId].faults[faultId] = {
+                id: faultId,
+                failureMode: newFault.name,
+                effect: newFault.effect,
+                severity: 1,
+                occurrence: 1,
+                detection: 1,
+                cause: "",
+                controls: "",
+            };
+
+            return updatedData;
+        });
+
+        // If we have a selected node, update it to trigger a re-render
+        if (selectedNode) {
+            const updatedSelectedNode = findNodeById(
+                updatedTree,
+                selectedNode.id
+            );
+            if (updatedSelectedNode) {
+                setSelectedNode(updatedSelectedNode);
+            }
+        }
+    };
+
+    // Add this helper function if not already present
+    const findNodeById = (tree: TreeNode, nodeId: string): TreeNode | null => {
+        if (tree.id === nodeId) {
+            return tree;
+        }
+
+        if ("children" in tree && tree.children) {
+            for (const child of tree.children) {
+                const found = findNodeById(child, nodeId);
+                if (found) {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    };
+
     return (
         <div className="flex flex-col h-screen">
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white">
@@ -240,6 +336,7 @@ export function FmeaPage() {
                                 onDataChange={handleDataChange}
                                 getNodePath={getNodePath}
                                 onFunctionNameChange={updateNodeName}
+                                onAddFault={handleAddFault}
                             />
                         </div>
                     </>
