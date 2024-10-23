@@ -19,6 +19,9 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 interface FaultCardProps {
     id: string;
@@ -41,42 +44,141 @@ export function FaultCardComponent({
     occurrence,
     detection,
     controls,
+    onDataChange,
 }: FaultCardProps) {
     const [isControlsExpanded, setIsControlsExpanded] = React.useState(false);
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [editedData, setEditedData] = React.useState({
+        failureMode,
+        effect,
+        cause,
+        severity,
+        occurrence,
+        detection,
+        controls,
+    });
     const rpn = React.useMemo(
         () => severity * occurrence * detection,
         [severity, occurrence, detection]
     );
 
+    const handleRiskIndicatorEdit = (field: string, value: number) => {
+        setEditedData({
+            ...editedData,
+            [field]: value,
+        });
+    };
+
+    const handleSave = () => {
+        onDataChange(editedData);
+        setIsEditing(false);
+    };
+
+    const handleCancel = () => {
+        setEditedData({
+            failureMode,
+            effect,
+            cause,
+            severity,
+            occurrence,
+            detection,
+            controls,
+        });
+        setIsEditing(false);
+    };
+
     return (
         <TooltipProvider>
             <Card className="w-full overflow-hidden transition-all hover:shadow-lg">
                 <CardHeader className="bg-gradient-to-r from-yellow-100 to-orange-100 pb-2">
-                    <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-800">
-                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                        {failureMode}
-                    </CardTitle>
+                    <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-800">
+                            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                            {isEditing ? (
+                                <Input
+                                    value={editedData.failureMode}
+                                    onChange={(e) =>
+                                        setEditedData({
+                                            ...editedData,
+                                            failureMode: e.target.value,
+                                        })
+                                    }
+                                    className="max-w-md"
+                                />
+                            ) : (
+                                failureMode
+                            )}
+                        </CardTitle>
+                        <div className="flex gap-2">
+                            {isEditing ? (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleCancel}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button size="sm" onClick={handleSave}>
+                                        Save
+                                    </Button>
+                                </>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsEditing(true)}
+                                >
+                                    Edit
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent className="grid gap-6 p-4">
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <InfoBox title="Effect" content={effect} icon={Info} />
+                        <InfoBox
+                            title="Effect"
+                            content={editedData.effect}
+                            icon={Info}
+                            isEditing={isEditing}
+                            onEdit={(value) =>
+                                setEditedData({
+                                    ...editedData,
+                                    effect: value,
+                                })
+                            }
+                        />
                         <InfoBox
                             title="Cause"
-                            content={cause}
+                            content={editedData.cause}
                             icon={AlertTriangle}
+                            isEditing={isEditing}
+                            onEdit={(value) =>
+                                setEditedData({
+                                    ...editedData,
+                                    cause: value,
+                                })
+                            }
                         />
                     </div>
                     <RiskIndicators
-                        severity={severity}
-                        occurrence={occurrence}
-                        detection={detection}
+                        severity={editedData.severity}
+                        occurrence={editedData.occurrence}
+                        detection={editedData.detection}
+                        isEditing={isEditing}
+                        onEdit={handleRiskIndicatorEdit}
                     />
                     <RPNDisplay rpn={rpn} />
                     <ControlsBox
-                        controls={controls}
+                        controls={editedData.controls}
                         isExpanded={isControlsExpanded}
                         onToggle={() =>
                             setIsControlsExpanded(!isControlsExpanded)
+                        }
+                        isEditing={isEditing}
+                        onEdit={(value) =>
+                            setEditedData({ ...editedData, controls: value })
                         }
                     />
                 </CardContent>
@@ -89,18 +191,31 @@ function InfoBox({
     title,
     content,
     icon: Icon,
+    isEditing,
+    onEdit,
 }: {
     title: string;
     content: string;
     icon: React.ElementType;
+    isEditing?: boolean;
+    onEdit?: (value: string) => void;
 }) {
     return (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 shadow-sm">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
             <h4 className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-700">
                 <Icon className="h-4 w-4 text-gray-600" />
                 {title}
             </h4>
-            <p className="text-sm text-gray-600">{content || "N/A"}</p>
+            {isEditing ? (
+                <Textarea
+                    value={content}
+                    onChange={(e) => onEdit?.(e.target.value)}
+                    className="min-h-[100px] w-full"
+                    placeholder={`Enter ${title.toLowerCase()}...`}
+                />
+            ) : (
+                <p className="text-sm text-gray-600">{content || "N/A"}</p>
+            )}
         </div>
     );
 }
@@ -109,10 +224,14 @@ function RiskIndicators({
     severity,
     occurrence,
     detection,
+    isEditing,
+    onEdit,
 }: {
     severity: number;
     occurrence: number;
     detection: number;
+    isEditing?: boolean;
+    onEdit?: (field: string, value: number) => void;
 }) {
     return (
         <div className="flex justify-between items-center rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -120,15 +239,25 @@ function RiskIndicators({
                 title="Severity"
                 value={severity}
                 icon={AlertTriangle}
+                isEditing={isEditing}
+                onEdit={(value) => onEdit?.("severity", value)}
             />
             <div className="h-8 w-px bg-gray-300" />
             <RiskIndicator
                 title="Occurrence"
                 value={occurrence}
                 icon={BarChart2}
+                isEditing={isEditing}
+                onEdit={(value) => onEdit?.("occurrence", value)}
             />
             <div className="h-8 w-px bg-gray-300" />
-            <RiskIndicator title="Detection" value={detection} icon={Eye} />
+            <RiskIndicator
+                title="Detection"
+                value={detection}
+                icon={Eye}
+                isEditing={isEditing}
+                onEdit={(value) => onEdit?.("detection", value)}
+            />
         </div>
     );
 }
@@ -137,10 +266,14 @@ function RiskIndicator({
     title,
     value,
     icon: Icon,
+    isEditing,
+    onEdit,
 }: {
     title: string;
     value: number;
     icon: React.ElementType;
+    isEditing?: boolean;
+    onEdit?: (value: number) => void;
 }) {
     const getColorClass = (value: number) => {
         if (value >= 8) return "text-white bg-red-500";
@@ -158,13 +291,65 @@ function RiskIndicator({
                         <div className="text-xs font-medium text-gray-500 mb-1">
                             {title}
                         </div>
-                        <div
-                            className={`text-lg font-bold w-10 h-10 rounded-full flex items-center justify-center ${getColorClass(
-                                value
-                            )}`}
-                        >
-                            {value}
-                        </div>
+                        {isEditing ? (
+                            <div className="relative w-10">
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    value={value}
+                                    onChange={(e) => {
+                                        const newValue = Math.min(
+                                            10,
+                                            Math.max(
+                                                1,
+                                                parseInt(e.target.value, 10) ||
+                                                    1
+                                            )
+                                        );
+                                        onEdit?.(newValue);
+                                    }}
+                                    className={`
+                                        w-10 h-10 text-center rounded-full p-0
+                                        text-lg font-bold border-2
+                                        focus:ring-2 focus:ring-offset-2
+                                        ${getColorClass(value)}
+                                        [appearance:textfield]
+                                        [&::-webkit-outer-spin-button]:appearance-none
+                                        [&::-webkit-inner-spin-button]:appearance-none
+                                        relative
+                                    `}
+                                />
+                                <div className="absolute -right-6 top-0 h-full flex flex-col justify-center gap-0.5">
+                                    <button
+                                        onClick={() =>
+                                            onEdit?.(Math.min(10, value + 1))
+                                        }
+                                        className="w-4 h-4 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                                    >
+                                        <ChevronUp className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() =>
+                                            onEdit?.(Math.max(1, value - 1))
+                                        }
+                                        className="w-4 h-4 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                                    >
+                                        <ChevronDown className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div
+                                className={`
+                                    text-lg font-bold w-10 h-10 
+                                    rounded-full flex items-center justify-center 
+                                    ${getColorClass(value)}
+                                `}
+                            >
+                                {value}
+                            </div>
+                        )}
                     </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -250,10 +435,14 @@ function ControlsBox({
     controls,
     isExpanded,
     onToggle,
+    isEditing,
+    onEdit,
 }: {
     controls: string;
     isExpanded: boolean;
     onToggle: () => void;
+    isEditing?: boolean;
+    onEdit?: (value: string) => void;
 }) {
     const [preventiveActions, detectionActions] = React.useMemo(() => {
         const actions = controls
@@ -279,18 +468,26 @@ function ControlsBox({
                     <ChevronDown className="h-4 w-4" />
                 )}
             </h4>
-            {isExpanded && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <ActionList
-                        title="Preventive Actions"
-                        actions={preventiveActions}
+            {isExpanded &&
+                (isEditing ? (
+                    <Textarea
+                        value={controls}
+                        onChange={(e) => onEdit?.(e.target.value)}
+                        className="min-h-[100px]"
+                        placeholder="Enter controls (separate preventive and detection actions with new lines)"
                     />
-                    <ActionList
-                        title="Detection Actions"
-                        actions={detectionActions}
-                    />
-                </div>
-            )}
+                ) : (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <ActionList
+                            title="Preventive Actions"
+                            actions={preventiveActions}
+                        />
+                        <ActionList
+                            title="Detection Actions"
+                            actions={detectionActions}
+                        />
+                    </div>
+                ))}
         </div>
     );
 }

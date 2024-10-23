@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { TreeView } from "@/components/tree-view";
 import { TreeNode, ParentTreeNode, FMEAData, FaultTreeNode } from "@/lib/types";
 import { FMEAWorksheet } from "@/components/fmea-worksheet";
-import { AnalysisPage } from "@/components/analysis-page";
+// import { AnalysisPage } from "@/components/analysis-page"; // Commented out
 import { initialTree } from "@/lib/initial-tree-data";
 import { convertXMLToJSON } from "@/lib/xml-to-json-converter";
 
@@ -145,7 +145,7 @@ export function FmeaPage() {
                     >
                         Worksheet
                     </button>
-                    <button
+                    {/* <button
                         className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
                             activeTab === "analysis"
                                 ? "bg-white text-blue-700"
@@ -154,7 +154,7 @@ export function FmeaPage() {
                         onClick={() => setActiveTab("analysis")}
                     >
                         Analysis
-                    </button>
+                    </button> */}
                     <input
                         type="file"
                         accept=".xml"
@@ -189,8 +189,11 @@ export function FmeaPage() {
                         </div>
                     </>
                 ) : (
+                    // <div className="w-full p-4 overflow-auto">
+                    //     <AnalysisPage data={fmeaData} />
+                    // </div> // Commented out
                     <div className="w-full p-4 overflow-auto">
-                        <AnalysisPage data={fmeaData} />
+                        {/* Analysis page content will be added in future updates */}
                     </div>
                 )}
             </div>
