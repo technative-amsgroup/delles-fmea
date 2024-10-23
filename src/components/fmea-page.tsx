@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { TreeView } from "@/components/tree-view";
 import { TreeNode, ParentTreeNode, FMEAData, FaultTreeNode } from "@/lib/types";
 import { FMEAWorksheet } from "@/components/fmea-worksheet";
@@ -16,17 +16,10 @@ export function FmeaPage() {
         "worksheet"
     );
 
-    useEffect(() => {
-        generateFMEAData(treeData);
-    }, [treeData]);
-
-    const generateFMEAData = (node: TreeNode) => {
-        const newFMEAData: FMEAData = {};
-
-        const traverseTree = (
-            currentNode: TreeNode,
-            parentPath: string[] = []
-        ) => {
+    // Move the traverseTree function outside of generateFMEAData
+    const traverseTree = useCallback(
+        (currentNode: TreeNode, parentPath: string[] = []): FMEAData => {
+            const newFMEAData: FMEAData = {};
             const currentPath = [...parentPath, currentNode.name];
 
             if (currentNode.type === "fault") {
@@ -61,15 +54,33 @@ export function FmeaPage() {
             }
 
             if ("children" in currentNode && currentNode.children) {
-                currentNode.children.forEach((child) =>
-                    traverseTree(child, currentPath)
-                );
+                currentNode.children.forEach((child) => {
+                    const childData = traverseTree(child, currentPath);
+                    // Merge child data with current data
+                    Object.keys(childData).forEach((componentId) => {
+                        if (!newFMEAData[componentId]) {
+                            newFMEAData[componentId] = { functions: {} };
+                        }
+                        Object.assign(
+                            newFMEAData[componentId].functions,
+                            childData[componentId].functions
+                        );
+                    });
+                });
             }
-        };
 
-        traverseTree(node);
-        setFMEAData(newFMEAData);
-    };
+            return newFMEAData;
+        },
+        []
+    );
+
+    // Use useEffect with proper dependencies
+    useEffect(() => {
+        if (Object.keys(fmeaData).length === 0) {
+            const newData = traverseTree(treeData);
+            setFMEAData(newData);
+        }
+    }, [fmeaData, treeData, traverseTree]);
 
     const handleNodeSelect = (node: TreeNode) => {
         setSelectedNode(node);
@@ -146,7 +157,11 @@ export function FmeaPage() {
             return node;
         };
 
-        setTreeData(updateTreeNode(treeData));
+        // Update the tree data
+        setTreeData((prevTreeData) => updateTreeNode(prevTreeData));
+
+        // Don't regenerate FMEA data here
+        // Remove or comment out the generateFMEAData call if it exists
     };
 
     return (

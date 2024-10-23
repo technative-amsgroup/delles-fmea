@@ -172,7 +172,26 @@ export function FMEAWorksheet({
 
     const handleFunctionNameChange = (functionId: string, newName: string) => {
         if (onFunctionNameChange) {
+            // First, preserve the existing fault data
+            const componentId = selectedNode?.id ?? "";
+            const existingFunctionData =
+                data[componentId]?.functions[functionId];
+
+            // Call the name change handler
             onFunctionNameChange(functionId, newName);
+
+            // Update the FMEA data to preserve fault data
+            if (existingFunctionData) {
+                const updatedData = { ...data };
+                if (!updatedData[componentId]) {
+                    updatedData[componentId] = { functions: {} };
+                }
+                updatedData[componentId].functions[functionId] = {
+                    ...existingFunctionData,
+                    id: functionId,
+                };
+                onDataChange(updatedData);
+            }
         }
     };
 

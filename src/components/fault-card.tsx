@@ -53,6 +53,19 @@ export function FaultCardComponent({
         controls: faultData.controls || "",
     });
 
+    // Add this useEffect to sync editedData with faultData props
+    React.useEffect(() => {
+        setEditedData({
+            failureMode: faultData.failureMode || fault.name,
+            effect: faultData.effect || "",
+            cause: faultData.cause || "",
+            severity: faultData.severity || 1,
+            occurrence: faultData.occurrence || 1,
+            detection: faultData.detection || 1,
+            controls: faultData.controls || "",
+        });
+    }, [faultData, fault.name]);
+
     const rpn = React.useMemo(
         () =>
             editedData.severity * editedData.occurrence * editedData.detection,

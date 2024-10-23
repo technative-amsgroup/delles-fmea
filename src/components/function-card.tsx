@@ -1,5 +1,5 @@
 // function-card.tsx
-import React, { useCallback, useMemo, useState, useEffect } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
     FunctionSquareIcon,
     ChevronRightIcon,
@@ -45,13 +45,6 @@ export const FunctionCard = React.memo(function FunctionCard({
         name: func.name,
     });
     const [openFaultId, setOpenFaultId] = useState<string | null>(null); // Add this back
-
-    // Add this useEffect to sync the editedData with props
-    useEffect(() => {
-        setEditedData({
-            name: func.name,
-        });
-    }, [func.name]);
 
     const handleFaultDataChange = useCallback(
         (
