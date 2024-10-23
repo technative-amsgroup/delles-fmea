@@ -130,6 +130,25 @@ export function FmeaPage() {
         }
     };
 
+    const updateNodeName = (nodeId: string, newName: string) => {
+        const updateTreeNode = (node: TreeNode): TreeNode => {
+            if (node.id === nodeId) {
+                return { ...node, name: newName };
+            }
+
+            if ("children" in node && node.children) {
+                return {
+                    ...node,
+                    children: node.children.map(updateTreeNode),
+                };
+            }
+
+            return node;
+        };
+
+        setTreeData(updateTreeNode(treeData));
+    };
+
     return (
         <div className="flex flex-col h-screen">
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white">
@@ -185,6 +204,7 @@ export function FmeaPage() {
                                 data={fmeaData}
                                 onDataChange={handleDataChange}
                                 getNodePath={getNodePath}
+                                onFunctionNameChange={updateNodeName}
                             />
                         </div>
                     </>

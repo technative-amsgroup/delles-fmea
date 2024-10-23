@@ -15,15 +15,17 @@ import { FunctionCard } from "@/components/function-card"; // Add this import
 interface FMEAWorksheetProps {
     selectedNode: TreeNode | null;
     data: FMEAData;
-    onDataChange: (data: FMEAData) => void;
-    getNodePath: (node: TreeNode | null) => string; // Add this new prop
+    onDataChange: (newData: FMEAData) => void;
+    getNodePath: (node: TreeNode | null) => string;
+    onFunctionNameChange?: (functionId: string, newName: string) => void; // Add this prop
 }
 
 export function FMEAWorksheet({
     selectedNode,
     data,
     onDataChange,
-    getNodePath, // Add this new prop
+    getNodePath,
+    onFunctionNameChange,
 }: FMEAWorksheetProps) {
     const [scrolled, setScrolled] = useState(false);
 
@@ -168,6 +170,12 @@ export function FMEAWorksheet({
         return getNodePath(selectedNode);
     }, [selectedNode, getNodePath]);
 
+    const handleFunctionNameChange = (functionId: string, newName: string) => {
+        if (onFunctionNameChange) {
+            onFunctionNameChange(functionId, newName);
+        }
+    };
+
     return (
         <div className="bg-gray-100 p-6 rounded-lg relative">
             <div
@@ -186,6 +194,7 @@ export function FMEAWorksheet({
                         componentId={selectedNode?.id ?? ""}
                         data={data}
                         onFaultDataChange={handleFaultDataChange}
+                        onFunctionNameChange={handleFunctionNameChange}
                     />
                 ))}
             </div>
