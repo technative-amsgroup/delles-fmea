@@ -205,17 +205,25 @@ export function FMEAWorksheet({
                 <Breadcrumb path={getFullPath()} />
             </div>
             <div className="space-y-6 mt-6">
-                {functions.map((func) => (
-                    <FunctionCard
-                        key={func.id}
-                        func={func}
-                        faults={faults[func.id]}
-                        componentId={selectedNode?.id ?? ""}
-                        data={data}
-                        onFaultDataChange={handleFaultDataChange}
-                        onFunctionNameChange={handleFunctionNameChange}
-                    />
-                ))}
+                {functions.length > 0 ? (
+                    functions.map((func) => (
+                        <FunctionCard
+                            key={func.id}
+                            func={func}
+                            faults={faults[func.id]}
+                            componentId={selectedNode?.id ?? ""}
+                            data={data}
+                            onFaultDataChange={handleFaultDataChange}
+                            onFunctionNameChange={handleFunctionNameChange}
+                        />
+                    ))
+                ) : (
+                    <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+                        <p className="text-gray-600">
+                            No functions available for this component.
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
