@@ -261,6 +261,69 @@ export function FmeaPage() {
         }
     };
 
+    const handleAddFunction = (
+        componentId: string,
+        newFunction: { name: string }
+    ) => {
+        const functionId = `function_${Date.now()}`;
+
+        // Update tree data
+        const updateTreeData = (node: TreeNode): TreeNode => {
+            if (node.id === componentId) {
+                const newFunctionNode: ParentTreeNode = {
+                    id: functionId,
+                    name: newFunction.name,
+                    type: "function",
+                    children: [],
+                };
+
+                return {
+                    ...node,
+                    children: [...(node.children || []), newFunctionNode],
+                } as ParentTreeNode;
+            }
+
+            if ("children" in node) {
+                return {
+                    ...node,
+                    children: node.children?.map(updateTreeData),
+                } as ParentTreeNode;
+            }
+
+            return node;
+        };
+
+        // Update both tree and FMEA data
+        const updatedTree = updateTreeData(treeData);
+        setTreeData(updatedTree);
+
+        // Update FMEA data
+        setFMEAData((prevData) => {
+            const updatedData = { ...prevData };
+            if (!updatedData[componentId]) {
+                updatedData[componentId] = { functions: {} };
+            }
+
+            updatedData[componentId].functions[functionId] = {
+                id: functionId,
+                faults: {},
+            };
+
+            return updatedData;
+        });
+
+        // Add this section to update the selected node
+        if (selectedNode) {
+            const updatedSelectedNode = findNodeById(
+                updatedTree,
+                selectedNode.id
+            );
+            if (updatedSelectedNode) {
+                setSelectedNode(updatedSelectedNode);
+            }
+        }
+    };
+
     // Add this helper function if not already present
     const findNodeById = (tree: TreeNode, nodeId: string): TreeNode | null => {
         if (tree.id === nodeId) {
@@ -337,6 +400,7 @@ export function FmeaPage() {
                                 getNodePath={getNodePath}
                                 onFunctionNameChange={updateNodeName}
                                 onAddFault={handleAddFault}
+                                onAddFunction={handleAddFunction}
                             />
                         </div>
                     </>
