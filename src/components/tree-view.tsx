@@ -33,6 +33,7 @@ interface TreeViewProps {
     treeData: TreeNode;
     onNodeNameChange?: (nodeId: string, newName: string) => void;
     onDeleteNode?: (nodeId: string) => void;
+    selectedNodeId?: string; // Add this new prop
 }
 
 const TreeView: React.FC<TreeViewProps> = ({
@@ -40,12 +41,12 @@ const TreeView: React.FC<TreeViewProps> = ({
     treeData,
     onNodeNameChange,
     onDeleteNode,
+    selectedNodeId, // Add this new prop
 }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
         new Set([treeData.id])
     );
-    const [selectedNode, setSelectedNode] = useState<string | null>(null);
     const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(
         new Set()
     );
@@ -122,7 +123,6 @@ const TreeView: React.FC<TreeViewProps> = ({
     useEffect(() => {
         if (debouncedSearchTerm.trim() === "") {
             setHighlightedNodes(new Set());
-            setSelectedNode(null);
             return;
         }
 
@@ -130,13 +130,10 @@ const TreeView: React.FC<TreeViewProps> = ({
         setHighlightedNodes(foundNodes);
         if (foundNodes.size > 0) {
             const firstFoundNodeId = Array.from(foundNodes)[0];
-            setSelectedNode(firstFoundNodeId);
             const firstFoundNode = findNodeById(treeData, firstFoundNodeId);
             if (firstFoundNode) {
                 onNodeSelect(firstFoundNode);
             }
-        } else {
-            setSelectedNode(null);
         }
     }, [
         debouncedSearchTerm,
@@ -192,7 +189,7 @@ const TreeView: React.FC<TreeViewProps> = ({
             "children" in node && node.children && node.children.length > 0;
         const isExpanded = expandedNodes.has(node.id);
         const isHighlighted = highlightedNodes.has(node.id);
-        const isSelected = selectedNode === node.id;
+        const isSelected = node.id === selectedNodeId; // Update this line
 
         // Only render system, subsystem, and component nodes
         if (
@@ -222,7 +219,7 @@ const TreeView: React.FC<TreeViewProps> = ({
             }
         };
 
-        const handleNodeClick = (e: React.MouseEvent) => {
+        const handleNodeClick = (e: React.MouseEvent, node: TreeNode) => {
             e.stopPropagation();
 
             // Toggle expansion if the node has children
@@ -230,11 +227,8 @@ const TreeView: React.FC<TreeViewProps> = ({
                 toggleNode(node.id);
             }
 
-            // Update selection and highlight together using a timeout
-            setSelectedNode(node.id);
-            setTimeout(() => {
-                setHighlightedNodes(new Set([node.id]));
-            }, 0);
+            // Update highlight
+            setHighlightedNodes(new Set([node.id]));
 
             // Notify parent of selection
             onNodeSelect(node);
@@ -253,7 +247,7 @@ const TreeView: React.FC<TreeViewProps> = ({
                             "bg-blue-100 ring-1 ring-blue-200",
                         !isHighlighted && !isSelected && "hover:bg-gray-100"
                     )}
-                    onClick={handleNodeClick}
+                    onClick={(e) => handleNodeClick(e, node)}
                 >
                     {hasChildren && (
                         <span
@@ -335,6 +329,29 @@ const TreeView: React.FC<TreeViewProps> = ({
             </div>
         );
     };
+
+    useEffect(() => {
+        if (selectedNodeId) {
+            // Expand parent nodes to show the selected node
+            const expandParents = (node: TreeNode): boolean => {
+                if (node.id === selectedNodeId) {
+                    return true;
+                }
+                if ("children" in node && node.children) {
+                    for (const child of node.children) {
+                        if (expandParents(child)) {
+                            setExpandedNodes((prev) =>
+                                new Set(prev).add(node.id)
+                            );
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+            expandParents(treeData);
+        }
+    }, [selectedNodeId, treeData]);
 
     return (
         <>

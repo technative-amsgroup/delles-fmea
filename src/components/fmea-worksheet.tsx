@@ -21,6 +21,8 @@ interface FMEAWorksheetProps {
     data: FMEAData;
     onDataChange: (newData: FMEAData) => void;
     getNodePath: (node: TreeNode | null) => string;
+    findNodeByPath: (path: string) => TreeNode | null; // Add this new prop
+    onNodeSelect: (node: TreeNode | null) => void; // Add this new prop
     onFunctionNameChange?: (functionId: string, newName: string) => void; // Add this prop
     onAddFault: (
         componentId: string,
@@ -41,6 +43,8 @@ export function FMEAWorksheet({
     data,
     onDataChange,
     getNodePath,
+    findNodeByPath, // Add this
+    onNodeSelect, // Add this
     onFunctionNameChange,
     onAddFault,
     onAddFunction, // Add this prop
@@ -242,14 +246,47 @@ export function FMEAWorksheet({
         }
     };
 
+    const handleBreadcrumbClick = (path: string) => {
+        const node = findNodeByPath(path);
+        if (node) {
+            onNodeSelect(node);
+        }
+    };
+
     return (
         <div className="bg-gray-100 p-6 rounded-lg relative">
             <div
-                className={`sticky top-0 z-10 bg-gray-100 py-4 ${
-                    scrolled ? "shadow-md" : ""
-                }`}
+                className={cn(
+                    "sticky top-0 z-10",
+                    "flex flex-col gap-4",
+                    "border-b border-gray-200/80",
+                    "pb-4 pt-2", // Added pt-2 for some top padding
+                    "before:absolute before:inset-0 before:bg-gray-100", // Added pseudo-element for full background coverage
+                    "before:-top-6", // Extend the background upward
+                    "before:-left-6 before:-right-6", // Extend the background to full width
+                    "before:-z-10", // Place the background behind the content
+                    scrolled ? "shadow-sm" : ""
+                )}
             >
-                <Breadcrumb path={getFullPath()} />
+                <Breadcrumb
+                    path={getFullPath()}
+                    onSegmentClick={handleBreadcrumbClick}
+                />
+
+                {selectedNode &&
+                    (selectedNode.type === "system" ||
+                        selectedNode.type === "subsystem" ||
+                        selectedNode.type === "component") && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsAddingFunction(true)}
+                            className="w-44 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
+                        >
+                            <PlusCircle className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
+                            Add New Function
+                        </Button>
+                    )}
             </div>
 
             {!selectedNode ? (
@@ -261,23 +298,6 @@ export function FMEAWorksheet({
                 </div>
             ) : (
                 <>
-                    {/* Change this condition to check if the node type is system, subsystem, or component */}
-                    {(selectedNode.type === "system" ||
-                        selectedNode.type === "subsystem" ||
-                        selectedNode.type === "component") && (
-                        <div className="mt-4">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setIsAddingFunction(true)}
-                                className="w-44 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
-                            >
-                                <PlusCircle className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
-                                Add New Function
-                            </Button>
-                        </div>
-                    )}
-
                     {isAddingFunction && (
                         <div className="mb-6">
                             <NewFunctionForm

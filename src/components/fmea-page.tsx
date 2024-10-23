@@ -484,6 +484,49 @@ export function FmeaPage() {
         }
     };
 
+    // Add this new function to find a node by its path
+    const findNodeByPath = useCallback(
+        (path: string): TreeNode | null => {
+            const segments = path.split(" > ");
+
+            let currentNode: TreeNode = treeData;
+
+            // Skip the first segment if it's the root node name
+            const startIndex = segments[0] === treeData.name ? 1 : 0;
+
+            for (let i = startIndex; i < segments.length; i++) {
+                const segment = segments[i];
+                if (!("children" in currentNode)) {
+                    return null;
+                }
+
+                const found = currentNode.children?.find(
+                    (child) => child.name === segment
+                );
+
+                if (!found) {
+                    return null;
+                }
+
+                currentNode = found;
+            }
+
+            return currentNode;
+        },
+        [treeData]
+    );
+
+    // Update the TreeView component to highlight the selected node
+    const handleBreadcrumbNodeSelect = (node: TreeNode | null) => {
+        if (node) {
+            setSelectedNode(node);
+            // You might want to expand the parent nodes here as well
+            // This would require tracking expanded nodes in the TreeView component
+        } else {
+            setSelectedNode(null);
+        }
+    };
+
     return (
         <div className="flex flex-col h-screen">
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white">
@@ -532,7 +575,8 @@ export function FmeaPage() {
                                 onNodeSelect={handleNodeSelect}
                                 treeData={treeData}
                                 onNodeNameChange={handleNodeNameChange}
-                                onDeleteNode={handleDeleteNode} // Add this prop
+                                onDeleteNode={handleDeleteNode}
+                                selectedNodeId={selectedNode?.id} // Add this prop
                             />
                         </div>
                         <div className="w-3/4 p-4 overflow-auto">
@@ -541,6 +585,8 @@ export function FmeaPage() {
                                 data={fmeaData}
                                 onDataChange={handleDataChange}
                                 getNodePath={getNodePath}
+                                findNodeByPath={findNodeByPath}
+                                onNodeSelect={handleBreadcrumbNodeSelect}
                                 onFunctionNameChange={updateNodeName}
                                 onAddFault={handleAddFault}
                                 onAddFunction={handleAddFunction}
