@@ -443,6 +443,47 @@ export function FmeaPage() {
         }
     };
 
+    // Add this new function in FmeaPage component
+    const handleDeleteNode = (nodeId: string) => {
+        // Update tree data
+        const updateTreeData = (node: TreeNode): TreeNode | null => {
+            if (node.id === nodeId) {
+                return null;
+            }
+
+            if ("children" in node && node.children) {
+                const updatedChildren = node.children
+                    .map(updateTreeData)
+                    .filter((child): child is TreeNode => child !== null);
+
+                return {
+                    ...node,
+                    children: updatedChildren,
+                } as ParentTreeNode;
+            }
+
+            return node;
+        };
+
+        // Update tree data
+        const updatedTree = updateTreeData(treeData);
+        if (updatedTree) {
+            setTreeData(updatedTree);
+        }
+
+        // Update FMEA data by removing all associated functions and faults
+        setFMEAData((prevData) => {
+            const updatedData = { ...prevData };
+            delete updatedData[nodeId];
+            return updatedData;
+        });
+
+        // Clear selection if the deleted node was selected
+        if (selectedNode?.id === nodeId) {
+            setSelectedNode(null);
+        }
+    };
+
     return (
         <div className="flex flex-col h-screen">
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white">
@@ -491,6 +532,7 @@ export function FmeaPage() {
                                 onNodeSelect={handleNodeSelect}
                                 treeData={treeData}
                                 onNodeNameChange={handleNodeNameChange}
+                                onDeleteNode={handleDeleteNode} // Add this prop
                             />
                         </div>
                         <div className="w-3/4 p-4 overflow-auto">
