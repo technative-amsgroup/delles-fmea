@@ -3,6 +3,7 @@ import {
     ParentTreeNode,
     FaultTreeNode,
     BaseTreeNode,
+    FMEAData,
 } from "@/lib/types";
 import { parseString } from "xml2js";
 
@@ -29,7 +30,9 @@ interface XMLStructure {
     };
 }
 
-export async function convertXMLToJSON(xmlContent: string): Promise<TreeNode> {
+export async function convertXMLToJSON(
+    xmlContent: string
+): Promise<{ treeData: TreeNode; fmeaData: FMEAData }> {
     return new Promise((resolve, reject) => {
         parseString(xmlContent, (err, result: XMLStructure) => {
             if (err) {
@@ -162,7 +165,66 @@ export async function convertXMLToJSON(xmlContent: string): Promise<TreeNode> {
             }
 
             const rootNode = buildTreeNode(rootElement, 0);
-            resolve(rootNode);
+
+            // Generate FMEA data
+            const fmeaData: FMEAData = {};
+
+            function traverseTreeForFMEAData(node: TreeNode) {
+                if (
+                    node.type === "component" ||
+                    node.type === "system" ||
+                    node.type === "subsystem"
+                ) {
+                    fmeaData[node.id] = { functions: {} };
+                    if ("children" in node && node.children) {
+                        node.children.forEach((child) => {
+                            if (child.type === "function") {
+                                fmeaData[node.id].functions[child.id] = {
+                                    id: child.id,
+                                    faults: {},
+                                };
+                                if ("children" in child && child.children) {
+                                    child.children.forEach((fault) => {
+                                        if (fault.type === "fault") {
+                                            fmeaData[node.id].functions[
+                                                child.id
+                                            ].faults[fault.id] = {
+                                                id: fault.id,
+                                                failureMode: fault.name,
+                                                effect:
+                                                    (fault as FaultTreeNode)
+                                                        .effect || "",
+                                                severity:
+                                                    (fault as FaultTreeNode)
+                                                        .severity || 1,
+                                                cause:
+                                                    (fault as FaultTreeNode)
+                                                        .cause || "",
+                                                occurrence:
+                                                    (fault as FaultTreeNode)
+                                                        .occurrence || 1,
+                                                detection:
+                                                    (fault as FaultTreeNode)
+                                                        .detection || 1,
+                                                controls:
+                                                    (fault as FaultTreeNode)
+                                                        .controls || "",
+                                            };
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }
+                if ("children" in node && node.children) {
+                    node.children.forEach(traverseTreeForFMEAData);
+                }
+            }
+
+            traverseTreeForFMEAData(rootNode);
+
+            resolve({ treeData: rootNode, fmeaData });
         });
     });
 }

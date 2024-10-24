@@ -7,7 +7,31 @@ import { FMEAWorksheet } from "@/components/fmea-worksheet";
 // import { AnalysisPage } from "@/components/analysis-page"; // Commented out
 import { initialTree } from "@/lib/initial-tree-data";
 import { convertXMLToJSON } from "@/lib/xml-to-json-converter";
+import { saveToXML } from "@/lib/save-to-xml";
+import { saveAs } from "file-saver"; // You'll need to install this package: npm install file-saver @types/file-saver
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Download, Upload, ChevronDown } from "lucide-react";
 
+// Add this interface near the top of the file
+interface FMEAFileData {
+    version: string;
+    lastModified: string;
+    treeData: TreeNode;
+    fmeaData: FMEAData;
+    metadata?: {
+        projectName?: string;
+        author?: string;
+        description?: string;
+    };
+}
+
+// Add these functions inside FmeaPage component, after the state declarations
 export function FmeaPage() {
     const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
     const [fmeaData, setFMEAData] = useState<FMEAData>({});
@@ -121,27 +145,6 @@ export function FmeaPage() {
 
         findNodePath(treeData as ParentTreeNode, node.id);
         return path.join(" > ");
-    };
-
-    const handleFileUpload = async (
-        event: React.ChangeEvent<HTMLInputElement>
-    ) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const xmlContent = e.target?.result as string;
-                try {
-                    const jsonData = await convertXMLToJSON(xmlContent);
-                    console.log("Extracted JSON data:", jsonData);
-                    setTreeData(jsonData);
-                    setSelectedNode(null);
-                } catch (error) {
-                    console.error("Error converting XML to JSON:", error);
-                }
-            };
-            reader.readAsText(file);
-        }
     };
 
     const updateNodeName = (nodeId: string, newName: string) => {
@@ -569,44 +572,193 @@ export function FmeaPage() {
         setExpandedNodes((prev: Set<string>) => new Set([...prev, parentId]));
     };
 
+    const handleSaveXML = () => {
+        const xmlContent = saveToXML(treeData, fmeaData);
+        const blob = new Blob([xmlContent], { type: "text/xml" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "fmea.xml";
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleSaveFMEA = () => {
+        const fileData: FMEAFileData = {
+            version: "1.0.0",
+            lastModified: new Date().toISOString(),
+            treeData: treeData, // Use the state variable directly
+            fmeaData: fmeaData, // Use the state variable directly
+            metadata: {
+                projectName: "My FMEA Project",
+                author: "System User",
+                description: "FMEA Analysis Data",
+            },
+        };
+
+        const jsonString = JSON.stringify(fileData, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+
+        if (window.showSaveFilePicker) {
+            window
+                .showSaveFilePicker({
+                    suggestedName: "analysis.fmea",
+                    types: [
+                        {
+                            description: "FMEA File",
+                            accept: { "application/json": [".fmea"] },
+                        },
+                    ],
+                })
+                .then(async (fileHandle: FileSystemFileHandle) => {
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                })
+                .catch((error: Error) => {
+                    console.error("Error saving file:", error);
+                    // Fallback to saveAs if the file system API is not supported or fails
+                    saveAs(blob, "analysis.fmea");
+                });
+        } else {
+            // Fallback for browsers that don't support the file system API
+            saveAs(blob, "analysis.fmea");
+        }
+    };
+
+    const handleLoadFMEA = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith(".fmea")) {
+            alert("Please select a valid .fmea file");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const content = e.target?.result as string;
+                const parsedData: FMEAFileData = JSON.parse(content);
+
+                if (
+                    !parsedData.version ||
+                    !parsedData.treeData ||
+                    !parsedData.fmeaData
+                ) {
+                    throw new Error("Invalid file format");
+                }
+
+                setTreeData(parsedData.treeData);
+                setFMEAData(parsedData.fmeaData);
+                setSelectedNode(null);
+
+                console.log("Project loaded:", parsedData.metadata);
+            } catch (error) {
+                console.error("Error loading file:", error);
+                alert(
+                    "Error loading file. Please ensure it is a valid .fmea file."
+                );
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const handleLoadXML = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith(".xml")) {
+            alert("Please select a valid .xml file");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const content = e.target?.result as string;
+                const result = await convertXMLToJSON(content);
+
+                setTreeData(result.treeData as ParentTreeNode);
+                setFMEAData(result.fmeaData);
+                setSelectedNode(null);
+
+                console.log("XML file loaded successfully");
+            } catch (error) {
+                console.error("Error loading XML file:", error);
+                alert(
+                    "Error loading XML file. Please ensure it is a valid FMEA XML file."
+                );
+            }
+        };
+        reader.readAsText(file);
+    };
+
     return (
         <div className="flex flex-col h-screen">
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
                 <h1 className="text-2xl font-bold">FMEA Analysis</h1>
                 <div className="flex items-center space-x-4">
-                    <button
-                        className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                            activeTab === "worksheet"
-                                ? "bg-white text-blue-700"
-                                : "bg-blue-600 hover:bg-blue-500"
-                        }`}
+                    <Button
+                        variant={
+                            activeTab === "worksheet" ? "secondary" : "ghost"
+                        }
                         onClick={() => setActiveTab("worksheet")}
                     >
                         Worksheet
-                    </button>
-                    {/* <button
-                        className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                            activeTab === "analysis"
-                                ? "bg-white text-blue-700"
-                                : "bg-blue-600 hover:bg-blue-500"
-                        }`}
-                        onClick={() => setActiveTab("analysis")}
-                    >
-                        Analysis
-                    </button> */}
-                    <input
-                        type="file"
-                        accept=".xml"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        id="xml-file-input"
-                    />
-                    <label
-                        htmlFor="xml-file-input"
-                        className="bg-white text-blue-700 hover:bg-blue-100 font-semibold py-2 px-4 rounded-lg cursor-pointer transition-colors duration-200"
-                    >
-                        Load XML File
-                    </label>
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="bg-white text-blue-700"
+                            >
+                                <Upload className="mr-2 h-4 w-4" />
+                                Load
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem
+                                onSelect={() =>
+                                    document
+                                        .getElementById("fmea-file-input")
+                                        ?.click()
+                                }
+                            >
+                                Load FMEA
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onSelect={() =>
+                                    document
+                                        .getElementById("xml-file-input")
+                                        ?.click()
+                                }
+                            >
+                                Load XML
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="bg-white text-blue-700"
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Save
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem onSelect={handleSaveFMEA}>
+                                Save FMEA
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handleSaveXML}>
+                                Save XML
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
             <div className="flex flex-1 overflow-hidden">
@@ -659,6 +811,20 @@ export function FmeaPage() {
                     </div>
                 )}
             </div>
+            <input
+                type="file"
+                accept=".fmea"
+                onChange={handleLoadFMEA}
+                className="hidden"
+                id="fmea-file-input"
+            />
+            <input
+                type="file"
+                accept=".xml"
+                onChange={handleLoadXML}
+                className="hidden"
+                id="xml-file-input"
+            />
         </div>
     );
 }
