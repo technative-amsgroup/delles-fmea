@@ -13,6 +13,7 @@ import {
     ChevronDown,
     ChevronUp,
     Trash2,
+    Download,
 } from "lucide-react";
 import {
     Tooltip,
@@ -43,6 +44,7 @@ interface FaultCardProps {
         updatedFaultData: Partial<FaultData>
     ) => void;
     onDeleteFault?: (faultId: string) => void;
+    onExportFault: (faultId: string, fileName: string) => void;
 }
 
 export function FaultCardComponent({
@@ -51,6 +53,7 @@ export function FaultCardComponent({
     faultData,
     onFaultDataChange,
     onDeleteFault,
+    onExportFault,
 }: FaultCardProps) {
     const [isControlsExpanded, setIsControlsExpanded] = React.useState(false);
     const [isEditing, setIsEditing] = React.useState(false);
@@ -128,6 +131,12 @@ export function FaultCardComponent({
         setIsDeleteDialogOpen(false);
     };
 
+    const handleExportFault = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const fileName = `${editedData.failureMode.replace(/\s+/g, "_")}.fault`;
+        onExportFault(fault.id, fileName);
+    };
+
     return (
         <TooltipProvider>
             <Card className="w-full overflow-hidden transition-all hover:shadow-lg">
@@ -173,6 +182,13 @@ export function FaultCardComponent({
                                         onClick={handleDeleteClick}
                                     >
                                         <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleExportFault}
+                                    >
+                                        <Download className="h-4 w-4" />
                                     </Button>
                                     <Button
                                         variant="outline"

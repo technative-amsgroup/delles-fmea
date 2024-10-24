@@ -12,7 +12,7 @@ import {
 import Breadcrumb from "@/components/Breadcrumb"; // Import the Breadcrumb component
 import { FunctionCard } from "@/components/function-card"; // Add this import
 import { Button } from "@/components/ui/button"; // Add if not already imported
-import { PlusCircle } from "lucide-react"; // Add if not already imported
+import { PlusCircle, Upload } from "lucide-react"; // Add if not already imported
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,23 @@ interface FMEAWorksheetProps {
         faultId: string
     ) => void; // Add this prop
     onDeleteFunction: (componentId: string, functionId: string) => void;
+    onExportFunction: (
+        componentId: string,
+        functionId: string,
+        fileName: string
+    ) => void; // Add this line
+    onImportFunctions: (componentId: string, functionFiles: FileList) => void; // Add this line
+    onExportFault: (
+        componentId: string,
+        functionId: string,
+        faultId: string,
+        fileName: string
+    ) => void; // Add this line
+    onImportFaults: (
+        componentId: string,
+        functionId: string,
+        faultFiles: FileList
+    ) => void; // Add this line
 }
 
 export function FMEAWorksheet({
@@ -50,6 +67,10 @@ export function FMEAWorksheet({
     onAddFunction, // Add this prop
     onDeleteFault,
     onDeleteFunction,
+    onExportFunction, // Add this line
+    onImportFunctions, // Add this line
+    onExportFault, // Add this prop
+    onImportFaults, // Add this prop
 }: FMEAWorksheetProps) {
     const [scrolled, setScrolled] = useState(false);
     const [isAddingFunction, setIsAddingFunction] = useState(false);
@@ -63,6 +84,13 @@ export function FMEAWorksheet({
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
+
+    // Watch for changes in the data to trigger UI updates
+    useEffect(() => {
+        if (selectedNode) {
+            onNodeSelect(selectedNode);
+        }
+    }, [data, selectedNode, onNodeSelect]);
 
     const getFunctionsAndFaults = (
         node: TreeNode | null
@@ -144,7 +172,10 @@ export function FMEAWorksheet({
         severity: fault.severity || 1,
         occurrence: fault.occurrence || 1,
         detection: fault.detection || 1,
-        controls: fault.controls || "",
+        controls: {
+            preventive: fault.controls?.preventive || "",
+            detection: fault.controls?.detection || "",
+        },
     });
 
     // Initialize data if it doesn't exist
@@ -253,6 +284,24 @@ export function FMEAWorksheet({
         }
     };
 
+    // Add this function to handle file input change
+    const handleImportFunctions = (
+        event: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        const files = event.target.files;
+        if (files && selectedNode) {
+            onImportFunctions(selectedNode.id, files);
+
+            // Assume onImportFunctions updates the data structure
+            // Directly update the state to trigger a re-render
+            const updatedData = { ...data };
+            onDataChange(updatedData);
+
+            // Re-select the node to ensure UI updates
+            onNodeSelect(selectedNode);
+        }
+    };
+
     return (
         <div className="bg-gray-100 p-6 rounded-lg relative">
             <div
@@ -281,15 +330,40 @@ export function FMEAWorksheet({
                             <h3 className="text-sm font-semibold text-gray-700 mb-3">
                                 Functions
                             </h3>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setIsAddingFunction(true)}
-                                className="w-44 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
-                            >
-                                <PlusCircle className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
-                                Add New Function
-                            </Button>
+                            <div className="flex space-x-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsAddingFunction(true)}
+                                    className="w-44 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
+                                >
+                                    <PlusCircle className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
+                                    Add New Function
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        document
+                                            .getElementById(
+                                                "import-functions-input"
+                                            )
+                                            ?.click()
+                                    }
+                                    className="w-44 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
+                                >
+                                    <Upload className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
+                                    Import Functions
+                                </Button>
+                                <input
+                                    id="import-functions-input"
+                                    type="file"
+                                    accept=".func"
+                                    multiple
+                                    onChange={handleImportFunctions}
+                                    className="hidden"
+                                />
+                            </div>
                         </div>
                     )}
             </div>
@@ -349,6 +423,32 @@ export function FMEAWorksheet({
                                         onDeleteFunction(
                                             selectedNode?.id ?? "",
                                             functionId
+                                        )
+                                    }
+                                    onExportFunction={(functionId, fileName) =>
+                                        onExportFunction(
+                                            selectedNode?.id ?? "",
+                                            functionId,
+                                            fileName
+                                        )
+                                    }
+                                    onExportFault={(
+                                        functionId,
+                                        faultId,
+                                        fileName
+                                    ) =>
+                                        onExportFault(
+                                            selectedNode?.id ?? "",
+                                            functionId,
+                                            faultId,
+                                            fileName
+                                        )
+                                    }
+                                    onImportFaults={(functionId, faultFiles) =>
+                                        onImportFaults(
+                                            selectedNode?.id ?? "",
+                                            functionId,
+                                            faultFiles
                                         )
                                     }
                                 />

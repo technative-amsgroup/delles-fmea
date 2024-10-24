@@ -3,9 +3,10 @@ export interface BaseTreeNode {
     id: string;
     name: string;
     type: "system" | "subsystem" | "component" | "function" | "fault";
+    children?: TreeNode[];
 }
 
-// Interface for nodes that can have children
+// Interface for system, subsystem, component, and function nodes
 export interface ParentTreeNode extends BaseTreeNode {
     type: "system" | "subsystem" | "component" | "function";
     children: TreeNode[];

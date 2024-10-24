@@ -9,6 +9,8 @@ import {
     Trash2,
     ChevronDown,
     ChevronRight,
+    Download,
+    Upload,
 } from "lucide-react";
 import {
     ParentTreeNode,
@@ -48,6 +50,13 @@ interface FunctionCardProps {
     ) => void;
     onDeleteFault: (functionId: string, faultId: string) => void; // Add this prop
     onDeleteFunction: (functionId: string) => void; // Make this required
+    onExportFunction: (functionId: string, fileName: string) => void; // Updated to expect 2 arguments
+    onExportFault: (
+        functionId: string,
+        faultId: string,
+        fileName: string
+    ) => void;
+    onImportFaults: (functionId: string, faultFiles: FileList) => void;
 }
 
 export const FunctionCard = React.memo(function FunctionCard({
@@ -60,6 +69,9 @@ export const FunctionCard = React.memo(function FunctionCard({
     onAddFault,
     onDeleteFault,
     onDeleteFunction, // Add this prop
+    onExportFunction, // Add this line
+    onExportFault,
+    onImportFaults,
 }: FunctionCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedData, setEditedData] = useState({
@@ -167,6 +179,19 @@ export const FunctionCard = React.memo(function FunctionCard({
         }
     };
 
+    const handleExportFunction = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const fileName = editedData.name.replace(/\s+/g, "_") + ".func";
+        onExportFunction(func.id, fileName); // Remove componentId from here
+    };
+
+    const handleImportFaults = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (files) {
+            onImportFaults(func.id, files);
+        }
+    };
+
     return (
         <>
             <Card className="mb-6 overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg">
@@ -254,6 +279,14 @@ export const FunctionCard = React.memo(function FunctionCard({
                                     >
                                         <Pencil className="h-4 w-4 text-gray-500" />
                                     </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleExportFunction}
+                                        className="transition-all duration-200 hover:bg-gray-100"
+                                    >
+                                        <Download className="h-4 w-4 text-gray-500" />
+                                    </Button>
                                     {isExpanded ? (
                                         <ChevronDown className="h-5 w-5 text-gray-400" />
                                     ) : (
@@ -268,10 +301,41 @@ export const FunctionCard = React.memo(function FunctionCard({
                 {isExpanded && (
                     <CardContent className="p-0">
                         <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                            <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                                Faults / Failure Modes
-                            </h3>
-                            {isAddingFault ? (
+                            <div className="flex justify-start items-center mb-3">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsAddingFault(true)}
+                                    className="w-32 h-8 bg-white/80 hover:bg-white"
+                                >
+                                    <PlusCircle className="h-4 w-4 mr-1.5" />
+                                    Add New Fault
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        document
+                                            .getElementById(
+                                                `import-faults-${func.id}`
+                                            )
+                                            ?.click()
+                                    }
+                                    className="w-32 h-8 bg-white/80 hover:bg-white ml-2"
+                                >
+                                    <Upload className="h-4 w-4 mr-1.5" />
+                                    Import Faults
+                                </Button>
+                                <input
+                                    id={`import-faults-${func.id}`}
+                                    type="file"
+                                    accept=".fault"
+                                    multiple
+                                    onChange={handleImportFaults}
+                                    className="hidden"
+                                />
+                            </div>
+                            {isAddingFault && (
                                 <div className="space-y-3 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                                     <div className="flex gap-3">
                                         <div className="flex-1">
@@ -283,7 +347,6 @@ export const FunctionCard = React.memo(function FunctionCard({
                                                         ...prev,
                                                         name: e.target.value,
                                                     }));
-                                                    // Clear validation error when user types
                                                     if (e.target.value.trim()) {
                                                         setValidationErrors({});
                                                     }
@@ -344,16 +407,6 @@ export const FunctionCard = React.memo(function FunctionCard({
                                         </Button>
                                     </div>
                                 </div>
-                            ) : (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setIsAddingFault(true)}
-                                    className="w-40 h-8 bg-white/80 hover:bg-white border border-gray-200 hover:border-primary/30 text-gray-600 hover:text-primary/80 transition-all duration-200 group shadow-sm hover:shadow"
-                                >
-                                    <PlusCircle className="h-4 w-4 mr-1.5 text-gray-400 group-hover:text-primary/70" />
-                                    Add New Fault
-                                </Button>
                             )}
                         </div>
                         <div className="p-4 bg-gray-50">
@@ -447,6 +500,16 @@ export const FunctionCard = React.memo(function FunctionCard({
                                                         onDeleteFault(
                                                             func.id,
                                                             faultId
+                                                        )
+                                                    }
+                                                    onExportFault={(
+                                                        faultId,
+                                                        fileName
+                                                    ) =>
+                                                        onExportFault(
+                                                            func.id,
+                                                            faultId,
+                                                            fileName
                                                         )
                                                     }
                                                 />

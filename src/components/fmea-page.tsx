@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { TreeView } from "@/components/tree-view";
-import { TreeNode, ParentTreeNode, FMEAData, FaultTreeNode } from "@/lib/types";
+import {
+    TreeNode,
+    ParentTreeNode,
+    FMEAData,
+    FaultTreeNode,
+    FaultData,
+} from "@/lib/types";
 import { FMEAWorksheet } from "@/components/fmea-worksheet";
 // import { AnalysisPage } from "@/components/analysis-page"; // Commented out
 import { initialTree } from "@/lib/initial-tree-data";
@@ -17,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, ChevronDown } from "lucide-react";
+import { useNodeTypes } from "@/hooks/useNodeTypes";
 
 // Add this interface near the top of the file
 interface FMEAFileData {
@@ -33,15 +40,22 @@ interface FMEAFileData {
 
 // Add these functions inside FmeaPage component, after the state declarations
 export function FmeaPage() {
-    const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
+    const { updateNodeTypes } = useNodeTypes();
+
     const [fmeaData, setFMEAData] = useState<FMEAData>({});
     const [treeData, setTreeData] = useState(initialTree);
     const [activeTab, setActiveTab] = useState<"worksheet" | "analysis">(
         "worksheet"
     );
+    const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
         () => new Set()
     );
+
+    // Use useEffect to update the tree data after the component mounts
+    useEffect(() => {
+        setTreeData(updateNodeTypes(initialTree));
+    }, [updateNodeTypes]);
 
     // Move the traverseTree function outside of generateFMEAData
     const traverseTree = useCallback(
@@ -454,7 +468,6 @@ export function FmeaPage() {
 
     // Add this new function in FmeaPage component
     const handleDeleteNode = (nodeId: string) => {
-        // Update tree data
         const updateTreeData = (node: TreeNode): TreeNode | null => {
             if (node.id === nodeId) {
                 return null;
@@ -474,22 +487,28 @@ export function FmeaPage() {
             return node;
         };
 
-        // Update tree data
         const updatedTree = updateTreeData(treeData);
         if (updatedTree) {
-            setTreeData(updatedTree);
-        }
+            const fullyUpdatedTree = updateNodeTypes(updatedTree);
+            setTreeData(fullyUpdatedTree);
 
-        // Update FMEA data by removing all associated functions and faults
-        setFMEAData((prevData) => {
-            const updatedData = { ...prevData };
-            delete updatedData[nodeId];
-            return updatedData;
-        });
+            // Update FMEA data by removing all associated functions and faults
+            setFMEAData((prevData) => {
+                const updatedData = { ...prevData };
+                const removeAssociatedData = (node: TreeNode) => {
+                    delete updatedData[node.id];
+                    if ("children" in node && node.children) {
+                        node.children.forEach(removeAssociatedData);
+                    }
+                };
+                removeAssociatedData(updatedTree);
+                return updatedData;
+            });
 
-        // Clear selection if the deleted node was selected
-        if (selectedNode?.id === nodeId) {
-            setSelectedNode(null);
+            // Clear selection if the deleted node was selected
+            if (selectedNode?.id === nodeId) {
+                setSelectedNode(null);
+            }
         }
     };
 
@@ -536,26 +555,23 @@ export function FmeaPage() {
         }
     };
 
-    const handleAddChild = (
-        parentId: string,
-        newNode: { name: string; type: "system" | "subsystem" | "component" }
-    ) => {
-        const newNodeId = `${newNode.type}_${Date.now()}`;
-
+    const handleAddChild = (parentId: string, newNodeName: string) => {
         const updateTreeData = (node: TreeNode): TreeNode => {
             if (node.id === parentId) {
-                return {
-                    ...node,
-                    children: [
-                        ...(node.children || []),
-                        {
-                            id: newNodeId,
-                            name: newNode.name,
-                            type: newNode.type,
-                            children: [],
-                        } as ParentTreeNode,
-                    ],
+                const newChild = {
+                    id: `node_${Date.now()}`,
+                    name: newNodeName,
+                    type: "component",
+                    children: [],
                 } as ParentTreeNode;
+
+                const updatedNode = {
+                    ...node,
+                    type: node.type === "component" ? "subsystem" : node.type,
+                    children: [...(node.children || []), newChild],
+                } as ParentTreeNode;
+
+                return updatedNode;
             }
 
             if ("children" in node) {
@@ -569,10 +585,11 @@ export function FmeaPage() {
         };
 
         const updatedTree = updateTreeData(treeData);
-        setTreeData(updatedTree);
+        const fullyUpdatedTree = updateNodeTypes(updatedTree);
+        setTreeData(fullyUpdatedTree);
 
         // Expand the parent node to show the new child
-        setExpandedNodes((prev: Set<string>) => new Set([...prev, parentId]));
+        setExpandedNodes((prev) => new Set([...prev, parentId]));
     };
 
     const handleSaveXML = () => {
@@ -652,7 +669,7 @@ export function FmeaPage() {
                     throw new Error("Invalid file format");
                 }
 
-                setTreeData(parsedData.treeData);
+                setTreeData(updateNodeTypes(parsedData.treeData));
                 setFMEAData(parsedData.fmeaData);
                 setSelectedNode(null);
 
@@ -682,7 +699,7 @@ export function FmeaPage() {
                 const content = e.target?.result as string;
                 const result = await convertXMLToJSON(content);
 
-                setTreeData(result.treeData as ParentTreeNode);
+                setTreeData(updateNodeTypes(result.treeData as ParentTreeNode));
                 setFMEAData(result.fmeaData);
                 setSelectedNode(null);
 
@@ -695,6 +712,637 @@ export function FmeaPage() {
             }
         };
         reader.readAsText(file);
+    };
+
+    const handleExportComponent = (nodeId: string) => {
+        const findNodeById = (node: TreeNode): TreeNode | null => {
+            if (node.id === nodeId) return node;
+            if ("children" in node && node.children) {
+                for (const child of node.children) {
+                    const found = findNodeById(child);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const nodeToExport = findNodeById(treeData);
+        if (!nodeToExport) {
+            console.error("Node not found");
+            return;
+        }
+
+        const extractFMEAData = (node: TreeNode): FMEAData => {
+            const result: FMEAData = {};
+            const extractData = (
+                currentNode: TreeNode,
+                parentPath: string[] = []
+            ) => {
+                const currentPath = [...parentPath, currentNode.name];
+                if (currentNode.type === "component") {
+                    const componentId = currentNode.id;
+                    result[componentId] = fmeaData[componentId] || {
+                        functions: {},
+                    };
+                }
+                if ("children" in currentNode && currentNode.children) {
+                    currentNode.children.forEach((child) =>
+                        extractData(child, currentPath)
+                    );
+                }
+            };
+            extractData(node);
+            return result;
+        };
+
+        const componentData = {
+            treeData: nodeToExport,
+            fmeaData: extractFMEAData(nodeToExport),
+        };
+
+        const jsonString = JSON.stringify(componentData, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+
+        const defaultFileName = `${nodeToExport.name.replace(
+            /\s+/g,
+            "_"
+        )}.comp`;
+
+        if (window.showSaveFilePicker) {
+            window
+                .showSaveFilePicker({
+                    suggestedName: defaultFileName,
+                    types: [
+                        {
+                            description: "Component File",
+                            accept: { "application/json": [".comp"] },
+                        },
+                    ],
+                })
+                .then(async (fileHandle: FileSystemFileHandle) => {
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                })
+                .catch((error: Error) => {
+                    console.error("Error saving file:", error);
+                    // Fallback to saveAs if the file system API is not supported or fails
+                    saveAs(blob, defaultFileName);
+                });
+        } else {
+            // Fallback for browsers that don't support the file system API
+            saveAs(blob, defaultFileName);
+        }
+    };
+
+    const handleImportComponent = (parentId: string) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".comp";
+        input.onchange = (event) => {
+            const file = (event.target as HTMLInputElement).files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const content = e.target?.result as string;
+                        const importedData = JSON.parse(content);
+
+                        // Generate new IDs for the imported component and its children
+                        const generateNewIds = (node: TreeNode): TreeNode => {
+                            const newNode = {
+                                ...node,
+                                id: `imported_${Date.now()}_${Math.random()
+                                    .toString(36)
+                                    .slice(2, 11)}`,
+                            };
+                            if ("children" in newNode && newNode.children) {
+                                newNode.children =
+                                    newNode.children.map(generateNewIds);
+                            }
+                            return newNode;
+                        };
+
+                        const updatedImportedNode = generateNewIds(
+                            importedData.treeData
+                        );
+                        const updatedImportedNodeWithTypes =
+                            updateNodeTypes(updatedImportedNode);
+
+                        // Find the parent node and update it
+                        const updateTreeData = (node: TreeNode): TreeNode => {
+                            if (node.id === parentId) {
+                                const updatedNode = {
+                                    ...node,
+                                    children: [
+                                        ...(node.children || []),
+                                        updatedImportedNodeWithTypes,
+                                    ],
+                                } as ParentTreeNode;
+                                // Force the parent to be a subsystem if it's currently a component
+                                if (updatedNode.type === "component") {
+                                    updatedNode.type = "subsystem";
+                                }
+                                return updatedNode;
+                            }
+                            if ("children" in node) {
+                                return {
+                                    ...node,
+                                    children:
+                                        node.children?.map(updateTreeData),
+                                } as ParentTreeNode;
+                            }
+                            return node;
+                        };
+
+                        // Update tree data
+                        const updatedTree = updateTreeData(treeData);
+                        const fullyUpdatedTree = updateNodeTypes(updatedTree);
+                        setTreeData(fullyUpdatedTree);
+
+                        // Expand the parent node to show the new child
+                        setExpandedNodes(
+                            (prev) => new Set([...prev, parentId])
+                        );
+
+                        // Update FMEA data
+                        setFMEAData((prevData) => {
+                            const newFMEAData = { ...prevData };
+                            const updateFMEAIds = (
+                                oldId: string,
+                                newId: string
+                            ) => {
+                                if (importedData.fmeaData[oldId]) {
+                                    newFMEAData[newId] = {
+                                        ...importedData.fmeaData[oldId],
+                                    };
+                                    delete newFMEAData[oldId];
+                                }
+                            };
+
+                            const traverseAndUpdateIds = (node: TreeNode) => {
+                                // Use type assertion to access the newId property
+                                const newId =
+                                    (node as TreeNode & { newId?: string })
+                                        .newId || node.id;
+                                updateFMEAIds(node.id, newId);
+                                if ("children" in node && node.children) {
+                                    node.children.forEach(traverseAndUpdateIds);
+                                }
+                            };
+
+                            traverseAndUpdateIds(updatedImportedNodeWithTypes);
+                            return newFMEAData;
+                        });
+
+                        console.log("Component imported successfully");
+                    } catch (error) {
+                        console.error("Error importing component:", error);
+                        alert(
+                            "Error importing component. Please ensure it is a valid .comp file."
+                        );
+                    }
+                };
+                reader.readAsText(file);
+            }
+        };
+        input.click();
+    };
+
+    const handleExportFunction = (
+        componentId: string,
+        functionId: string,
+        fileName: string
+    ) => {
+        const componentData = fmeaData[componentId];
+        if (!componentData || !componentData.functions[functionId]) {
+            console.error("Function not found");
+            return;
+        }
+
+        const functionData = componentData.functions[functionId];
+
+        // Find the current function name from the tree data
+        const findFunctionNode = (node: TreeNode): TreeNode | null => {
+            if (node.id === functionId) {
+                return node;
+            }
+            if ("children" in node && node.children) {
+                for (const child of node.children) {
+                    const result = findFunctionNode(child);
+                    if (result) return result;
+                }
+            }
+            return null;
+        };
+
+        const functionNode = findFunctionNode(treeData);
+
+        if (!functionNode) {
+            console.error("Function not found in tree data");
+            return;
+        }
+
+        // Prepare fault data with all properties
+        const faults = Object.entries(functionData.faults).map(
+            ([faultId, faultData]) => {
+                const faultNode = (
+                    functionNode as ParentTreeNode
+                ).children?.find((child) => child.id === faultId);
+                return {
+                    id: faultId,
+                    name: faultNode?.name || faultData.failureMode,
+                    failureMode: faultData.failureMode,
+                    effect: faultData.effect,
+                    cause: faultData.cause,
+                    severity: faultData.severity,
+                    occurrence: faultData.occurrence,
+                    detection: faultData.detection,
+                    controls: faultData.controls,
+                    // Include any other properties from FaultData that you want to export
+                };
+            }
+        );
+
+        const exportData = {
+            id: functionId,
+            name: functionNode.name,
+            faults: faults,
+        };
+
+        const jsonString = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+
+        if (window.showSaveFilePicker) {
+            window
+                .showSaveFilePicker({
+                    suggestedName: fileName,
+                    types: [
+                        {
+                            description: "Function File",
+                            accept: { "application/json": [".func"] },
+                        },
+                    ],
+                })
+                .then(async (fileHandle: FileSystemFileHandle) => {
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                })
+                .catch((error: Error) => {
+                    console.error("Error saving file:", error);
+                    // Fallback to saveAs if the file system API is not supported or fails
+                    saveAs(blob, fileName);
+                });
+        } else {
+            // Fallback for browsers that don't support the file system API
+            saveAs(blob, fileName);
+        }
+    };
+
+    // Add this function inside the FmeaPage component
+    const handleImportFunctions = async (
+        componentId: string,
+        functionFiles: FileList
+    ) => {
+        const importFunction = async (file: File) => {
+            return new Promise<ParentTreeNode | null>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const content = e.target?.result as string;
+                        const importedData: {
+                            id: string;
+                            name: string;
+                            faults: {
+                                id: string;
+                                name: string;
+                                failureMode: string;
+                                effect: string;
+                                cause: string;
+                                severity: number;
+                                occurrence: number;
+                                detection: number;
+                                controls: {
+                                    preventive: string;
+                                    detection: string;
+                                };
+                            }[];
+                        } = JSON.parse(content);
+
+                        // Generate a new ID for the imported function
+                        const newFunctionId = `imported_function_${Date.now()}_${Math.random()
+                            .toString(36)
+                            .slice(2, 11)}`;
+
+                        const newFunctionNode: ParentTreeNode = {
+                            id: newFunctionId,
+                            name: importedData.name,
+                            type: "function",
+                            children: importedData.faults.map((fault) => ({
+                                id: `imported_fault_${Date.now()}_${Math.random()
+                                    .toString(36)
+                                    .slice(2, 11)}`,
+                                name: fault.name,
+                                type: "fault" as const,
+                                effect: fault.effect,
+                                cause: fault.cause,
+                                severity: fault.severity,
+                                occurrence: fault.occurrence,
+                                detection: fault.detection,
+                                controls: fault.controls,
+                            })),
+                        };
+
+                        // Update FMEA data
+                        setFMEAData((prevData) => {
+                            const newFMEAData = { ...prevData };
+                            if (!newFMEAData[componentId]) {
+                                newFMEAData[componentId] = { functions: {} };
+                            }
+                            newFMEAData[componentId].functions[newFunctionId] =
+                                {
+                                    id: newFunctionId,
+                                    faults: importedData.faults.reduce(
+                                        (acc, fault) => {
+                                            const newFaultId = `imported_fault_${Date.now()}_${Math.random()
+                                                .toString(36)
+                                                .slice(2, 11)}`;
+                                            acc[newFaultId] = {
+                                                id: newFaultId,
+                                                failureMode: fault.failureMode,
+                                                effect: fault.effect,
+                                                cause: fault.cause,
+                                                severity: fault.severity,
+                                                occurrence: fault.occurrence,
+                                                detection: fault.detection,
+                                                controls: fault.controls,
+                                            };
+                                            return acc;
+                                        },
+                                        {} as Record<string, FaultData>
+                                    ),
+                                };
+                            return newFMEAData;
+                        });
+
+                        console.log(
+                            `Function "${importedData.name}" imported successfully`
+                        );
+                        resolve(newFunctionNode);
+                    } catch (error) {
+                        console.error("Error importing function:", error);
+                        alert(
+                            "Error importing function. Please ensure it is a valid .func file."
+                        );
+                        resolve(null);
+                    }
+                };
+                reader.readAsText(file);
+            });
+        };
+
+        const importedFunctions: ParentTreeNode[] = [];
+        for (const file of Array.from(functionFiles)) {
+            const newFunction = await importFunction(file);
+            if (newFunction) {
+                importedFunctions.push(newFunction);
+            }
+        }
+
+        // Update tree data synchronously first
+        const updateTreeData = (node: TreeNode): TreeNode => {
+            if (node.id === componentId) {
+                return {
+                    ...node,
+                    children: [...(node.children || []), ...importedFunctions],
+                } as ParentTreeNode;
+            }
+            if ("children" in node) {
+                return {
+                    ...node,
+                    children: node.children?.map(updateTreeData),
+                } as ParentTreeNode;
+            }
+            return node;
+        };
+
+        // Create the updated tree first
+        const updatedTree = updateTreeData(treeData);
+
+        // Set the tree data
+        setTreeData(updatedTree);
+
+        // Expand the parent node
+        setExpandedNodes((prev) => new Set([...prev, componentId]));
+
+        // Update selected node using the updatedTree instead of treeData
+        if (selectedNode) {
+            const updatedSelectedNode = findNodeById(
+                updatedTree,
+                selectedNode.id
+            );
+            if (updatedSelectedNode) {
+                setSelectedNode(updatedSelectedNode);
+            }
+        }
+    };
+
+    // Add these new functions in FmeaPage component
+    const handleExportFault = (
+        componentId: string,
+        functionId: string,
+        faultId: string,
+        fileName: string
+    ) => {
+        const componentData = fmeaData[componentId];
+        if (!componentData?.functions[functionId]?.faults[faultId]) {
+            console.error("Fault not found");
+            return;
+        }
+
+        const faultData = componentData.functions[functionId].faults[faultId];
+
+        // Find the current fault name from the tree data
+        const findFaultNode = (node: TreeNode): TreeNode | null => {
+            if (node.id === faultId) {
+                return node;
+            }
+            if ("children" in node && node.children) {
+                for (const child of node.children) {
+                    const result = findFaultNode(child);
+                    if (result) return result;
+                }
+            }
+            return null;
+        };
+
+        const faultNode = findFaultNode(treeData);
+
+        if (!faultNode) {
+            console.error("Fault not found in tree data");
+            return;
+        }
+
+        const exportData = {
+            id: faultId,
+            name: faultNode.name,
+            failureMode: faultData.failureMode,
+            effect: faultData.effect,
+            cause: faultData.cause,
+            severity: faultData.severity,
+            occurrence: faultData.occurrence,
+            detection: faultData.detection,
+            controls: faultData.controls,
+        };
+
+        const jsonString = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+
+        if (window.showSaveFilePicker) {
+            window
+                .showSaveFilePicker({
+                    suggestedName: fileName,
+                    types: [
+                        {
+                            description: "Fault File",
+                            accept: { "application/json": [".fault"] },
+                        },
+                    ],
+                })
+                .then(async (fileHandle: FileSystemFileHandle) => {
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                })
+                .catch((error: Error) => {
+                    console.error("Error saving file:", error);
+                    saveAs(blob, fileName);
+                });
+        } else {
+            saveAs(blob, fileName);
+        }
+    };
+
+    const handleImportFaults = async (
+        componentId: string,
+        functionId: string,
+        faultFiles: FileList
+    ) => {
+        const importFault = async (file: File) => {
+            return new Promise<FaultTreeNode | null>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const content = e.target?.result as string;
+                        const importedData = JSON.parse(content);
+
+                        // Generate a new ID for the imported fault
+                        const newFaultId = `imported_fault_${Date.now()}_${Math.random()
+                            .toString(36)
+                            .slice(2, 11)}`;
+
+                        const newFaultNode: FaultTreeNode = {
+                            id: newFaultId,
+                            name: importedData.name,
+                            type: "fault",
+                            effect: importedData.effect,
+                            cause: importedData.cause,
+                            severity: importedData.severity,
+                            occurrence: importedData.occurrence,
+                            detection: importedData.detection,
+                            controls: importedData.controls,
+                        };
+
+                        // Update FMEA data
+                        setFMEAData((prevData) => {
+                            const updatedData = { ...prevData };
+                            if (!updatedData[componentId]) {
+                                updatedData[componentId] = { functions: {} };
+                            }
+                            if (
+                                !updatedData[componentId].functions[functionId]
+                            ) {
+                                updatedData[componentId].functions[functionId] =
+                                    {
+                                        id: functionId,
+                                        faults: {},
+                                    };
+                            }
+
+                            updatedData[componentId].functions[
+                                functionId
+                            ].faults[newFaultId] = {
+                                id: newFaultId,
+                                failureMode: importedData.failureMode,
+                                effect: importedData.effect,
+                                cause: importedData.cause,
+                                severity: importedData.severity,
+                                occurrence: importedData.occurrence,
+                                detection: importedData.detection,
+                                controls: importedData.controls,
+                            };
+
+                            return updatedData;
+                        });
+
+                        console.log(
+                            `Fault "${importedData.name}" imported successfully`
+                        );
+                        resolve(newFaultNode);
+                    } catch (error) {
+                        console.error("Error importing fault:", error);
+                        alert(
+                            "Error importing fault. Please ensure it is a valid .fault file."
+                        );
+                        resolve(null);
+                    }
+                };
+                reader.readAsText(file);
+            });
+        };
+
+        const importedFaults: FaultTreeNode[] = [];
+        for (const file of Array.from(faultFiles)) {
+            const newFault = await importFault(file);
+            if (newFault) {
+                importedFaults.push(newFault);
+            }
+        }
+
+        // Update tree data synchronously first
+        const updateTreeData = (node: TreeNode): TreeNode => {
+            if (node.id === functionId) {
+                return {
+                    ...node,
+                    children: [...(node.children || []), ...importedFaults],
+                } as ParentTreeNode;
+            }
+            if ("children" in node) {
+                return {
+                    ...node,
+                    children: node.children?.map(updateTreeData),
+                } as ParentTreeNode;
+            }
+            return node;
+        };
+
+        // Create the updated tree first
+        const updatedTree = updateTreeData(treeData);
+
+        // Set the tree data
+        setTreeData(updatedTree);
+
+        // Update selected node using the updatedTree instead of treeData
+        if (selectedNode) {
+            const updatedSelectedNode = findNodeById(
+                updatedTree,
+                selectedNode.id
+            );
+            if (updatedSelectedNode) {
+                setSelectedNode(updatedSelectedNode);
+            }
+        }
     };
 
     return (
@@ -787,6 +1435,8 @@ export function FmeaPage() {
                                         return next;
                                     });
                                 }}
+                                onExportComponent={handleExportComponent}
+                                onImportComponent={handleImportComponent}
                             />
                         </div>
                         <div className="w-3/4 p-4 overflow-auto">
@@ -802,6 +1452,10 @@ export function FmeaPage() {
                                 onAddFunction={handleAddFunction}
                                 onDeleteFault={handleDeleteFault}
                                 onDeleteFunction={handleDeleteFunction}
+                                onExportFunction={handleExportFunction}
+                                onImportFunctions={handleImportFunctions}
+                                onExportFault={handleExportFault}
+                                onImportFaults={handleImportFaults}
                             />
                         </div>
                     </>

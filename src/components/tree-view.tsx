@@ -12,6 +12,8 @@ import {
     SearchIcon,
     Trash2,
     PlusCircle,
+    Download,
+    Upload,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { TreeNode, FaultData } from "@/lib/types";
@@ -25,12 +27,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
+import { useNodeTypes } from "@/hooks/useNodeTypes";
 
 // Export TreeNode and FaultData
 export type { TreeNode, FaultData };
@@ -41,12 +39,11 @@ interface TreeViewProps {
     onNodeNameChange?: (nodeId: string, newName: string) => void;
     onDeleteNode?: (nodeId: string) => void;
     selectedNodeId?: string; // Add this new prop
-    onAddChild?: (
-        parentId: string,
-        newNode: { name: string; type: "system" | "subsystem" | "component" }
-    ) => void; // Add this prop
+    onAddChild?: (parentId: string, newNodeName: string) => void; // Updated this prop
     expandedNodes: Set<string>;
     onToggleExpand: (nodeId: string) => void;
+    onExportComponent: (nodeId: string) => void; // Add this new prop
+    onImportComponent: (parentId: string) => void; // Add this new prop
 }
 
 const TreeView: React.FC<TreeViewProps> = ({
@@ -58,6 +55,8 @@ const TreeView: React.FC<TreeViewProps> = ({
     onAddChild,
     expandedNodes = new Set<string>(),
     onToggleExpand,
+    onExportComponent, // Add this new prop
+    onImportComponent, // Add this new prop
 }) => {
     const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(
         new Set()
@@ -71,6 +70,7 @@ const TreeView: React.FC<TreeViewProps> = ({
         name: string;
         type: string;
     } | null>(null);
+    const { determineNodeType } = useNodeTypes();
 
     // Clear search - define this first
     const clearSearch = useCallback(() => {
@@ -235,10 +235,21 @@ const TreeView: React.FC<TreeViewProps> = ({
         }
     };
 
-    const renderNode = (node: TreeNode | (TreeNode & FaultData)) => {
-        // Add this check to determine if node can have children
+    const renderNode = (
+        node: TreeNode,
+        isRoot: boolean = false,
+        level: number = 0
+    ) => {
+        // Skip rendering if the node is a function
+        if (node.type === "function") {
+            return null;
+        }
+
+        const nodeType =
+            node.type === "fault" ? node.type : determineNodeType(node, isRoot);
+
         const canHaveChildren =
-            node.type === "system" || node.type === "subsystem";
+            nodeType === "system" || nodeType === "subsystem";
         const hasChildren = !!(
             "children" in node &&
             node.children &&
@@ -248,17 +259,8 @@ const TreeView: React.FC<TreeViewProps> = ({
         const isHighlighted = highlightedNodes.has(node.id);
         const isSelected = node.id === selectedNodeId;
 
-        // Only render system, subsystem, and component nodes
-        if (
-            node.type !== "system" &&
-            node.type !== "subsystem" &&
-            node.type !== "component"
-        ) {
-            return null;
-        }
-
         const getIcon = () => {
-            switch (node.type) {
+            switch (nodeType) {
                 case "system":
                     return (
                         <Box className="h-4 w-4 text-green-600 opacity-90" />
@@ -271,33 +273,39 @@ const TreeView: React.FC<TreeViewProps> = ({
                     return (
                         <Puzzle className="h-4 w-4 text-blue-600 opacity-90" />
                     );
-                default:
-                    return null;
             }
         };
 
         return (
-            <div key={node.id} className="ml-4 first:ml-0">
+            <div
+                key={node.id}
+                className={cn(
+                    "transition-all duration-200",
+                    level > 0 && "ml-4 border-l border-gray-200",
+                    level === 1 && "mt-1"
+                )}
+            >
                 <div
                     className={cn(
-                        "flex items-center space-x-2 cursor-pointer p-1.5 rounded-md my-0.5",
+                        "flex items-center space-x-2 cursor-pointer p-1.5 rounded-md",
                         "transition-colors duration-150 group",
                         (isHighlighted || isSelected) &&
                             "bg-blue-100 ring-1 ring-blue-200",
-                        !isHighlighted && !isSelected && "hover:bg-gray-100"
+                        !isHighlighted && !isSelected && "hover:bg-gray-100",
+                        level > 0 && "ml-2"
                     )}
                     onClick={(e) => {
                         e.stopPropagation();
                         handleNodeClick(node, hasChildren);
                     }}
                 >
-                    {/* Update this section to only show arrows for nodes that can have children */}
-                    {canHaveChildren ? (
+                    {canHaveChildren && (
                         <span
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onToggleExpand(node.id);
                             }}
+                            className="w-4 h-4 flex items-center justify-center"
                         >
                             {isExpanded ? (
                                 <ChevronDownIcon className="h-4 w-4" />
@@ -305,9 +313,8 @@ const TreeView: React.FC<TreeViewProps> = ({
                                 <ChevronRightIcon className="h-4 w-4" />
                             )}
                         </span>
-                    ) : (
-                        <span className="w-4" />
                     )}
+                    {!canHaveChildren && <span className="w-4 h-4" />}
                     {getIcon()}
 
                     {editingNodeId === node.id ? (
@@ -341,93 +348,27 @@ const TreeView: React.FC<TreeViewProps> = ({
                         <div className="flex items-center space-x-2 flex-1">
                             <span className="text-gray-700">{node.name}</span>
                             <div className="flex items-center space-x-1">
-                                {/* Replace the existing add button with this dropdown */}
-                                {onAddChild && node.type !== "component" && (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className={cn(
-                                                    "p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors duration-200",
-                                                    isHighlighted || isSelected
-                                                        ? "opacity-100"
-                                                        : "opacity-0 group-hover:opacity-100"
-                                                )}
-                                            >
-                                                <PlusCircle className="h-3.5 w-3.5" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent
-                                            align="start"
-                                            className="w-40"
-                                        >
-                                            {node.type === "system" && (
-                                                <>
-                                                    <DropdownMenuItem
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onAddChild(
-                                                                node.id,
-                                                                {
-                                                                    name: "New subsystem",
-                                                                    type: "subsystem",
-                                                                }
-                                                            );
-                                                        }}
-                                                    >
-                                                        Add new subsystem
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onAddChild(
-                                                                node.id,
-                                                                {
-                                                                    name: "New component",
-                                                                    type: "component",
-                                                                }
-                                                            );
-                                                        }}
-                                                    >
-                                                        Add new component
-                                                    </DropdownMenuItem>
-                                                </>
-                                            )}
-                                            {node.type === "subsystem" && (
-                                                <>
-                                                    <DropdownMenuItem
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onAddChild(
-                                                                node.id,
-                                                                {
-                                                                    name: "New subsystem",
-                                                                    type: "subsystem",
-                                                                }
-                                                            );
-                                                        }}
-                                                    >
-                                                        Add new subsystem
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onAddChild(
-                                                                node.id,
-                                                                {
-                                                                    name: "New component",
-                                                                    type: "component",
-                                                                }
-                                                            );
-                                                        }}
-                                                    >
-                                                        Add new component
-                                                    </DropdownMenuItem>
-                                                </>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                {/* Replace the dropdown with a simple button */}
+                                {onAddChild && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onAddChild(
+                                                node.id,
+                                                "New Component"
+                                            );
+                                        }}
+                                        className={cn(
+                                            "p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors duration-200",
+                                            isHighlighted || isSelected
+                                                ? "opacity-100"
+                                                : "opacity-0 group-hover:opacity-100"
+                                        )}
+                                    >
+                                        <PlusCircle className="h-3.5 w-3.5" />
+                                    </Button>
                                 )}
                                 {/* Existing delete and edit buttons */}
                                 <Button
@@ -452,11 +393,49 @@ const TreeView: React.FC<TreeViewProps> = ({
                                     )}
                                     onClick={(e) => handleEditClick(e, node)}
                                 />
+                                {/* Update the export button to include all node types */}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onExportComponent(node.id);
+                                    }}
+                                    className={cn(
+                                        "p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors duration-200",
+                                        isHighlighted || isSelected
+                                            ? "opacity-100"
+                                            : "opacity-0 group-hover:opacity-100"
+                                    )}
+                                >
+                                    <Download className="h-3.5 w-3.5" />
+                                </Button>
+                                {/* Add this new button for import */}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onImportComponent(node.id);
+                                    }}
+                                    className={cn(
+                                        "p-1 text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors duration-200",
+                                        isHighlighted || isSelected
+                                            ? "opacity-100"
+                                            : "opacity-0 group-hover:opacity-100"
+                                    )}
+                                >
+                                    <Upload className="h-3.5 w-3.5" />
+                                </Button>
                             </div>
                         </div>
                     )}
                 </div>
-                {hasChildren && isExpanded && node.children?.map(renderNode)}
+                {hasChildren &&
+                    isExpanded &&
+                    node.children?.map((child) =>
+                        renderNode(child, false, level + 1)
+                    )}
             </div>
         );
     };
@@ -475,7 +454,7 @@ const TreeView: React.FC<TreeViewProps> = ({
                     <SearchIcon className="h-4 w-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 </div>
                 <div className="overflow-auto max-h-[calc(100vh-12rem)] pr-2">
-                    {renderNode(treeData)}
+                    {renderNode(treeData, true, 0)}
                 </div>
             </div>
 
