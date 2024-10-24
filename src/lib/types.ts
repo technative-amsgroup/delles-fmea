@@ -19,7 +19,10 @@ export interface FaultTreeNode extends BaseTreeNode {
     severity?: number;
     occurrence?: number;
     detection?: number;
-    controls?: string;
+    controls?: {
+        preventive: string;
+        detection: string;
+    };
     children?: never; // Explicitly state that FaultTreeNode doesn't have children
 }
 
@@ -33,7 +36,10 @@ export interface FaultData {
     severity: number;
     cause: string;
     occurrence: number;
-    controls: string;
+    controls: {
+        preventive: string;
+        detection: string;
+    };
     detection: number;
 }
 

@@ -29,8 +29,12 @@ export const initialTree: TreeNode = {
                                     severity: 9,
                                     occurrence: 4,
                                     detection: 3,
-                                    controls:
-                                        "Regular fuel system inspections\nFuel filter maintenance\nFuel pressure monitoring\nEmergency fuel pump system",
+                                    controls: {
+                                        preventive:
+                                            "Regular fuel system inspections\nFuel filter maintenance",
+                                        detection:
+                                            "Fuel pressure monitoring\nEmergency fuel pump system",
+                                    },
                                 } as FaultTreeNode,
                                 {
                                     id: "compressor_failure",
@@ -41,8 +45,12 @@ export const initialTree: TreeNode = {
                                     severity: 6,
                                     occurrence: 3,
                                     detection: 5,
-                                    controls:
-                                        "Regular inspections\nFOD prevention training\nCompressor health monitoring\nVibration analysis",
+                                    controls: {
+                                        preventive:
+                                            "Regular inspections\nFOD prevention training",
+                                        detection:
+                                            "Compressor health monitoring\nVibration analysis",
+                                    },
                                 } as FaultTreeNode,
                             ],
                         },
@@ -60,8 +68,12 @@ export const initialTree: TreeNode = {
                                     severity: 7,
                                     occurrence: 3,
                                     detection: 2,
-                                    controls:
-                                        "Redundant sensors\nRegular calibration\nFail-safe mechanisms\nPilot override capability",
+                                    controls: {
+                                        preventive:
+                                            "Redundant sensors\nRegular calibration",
+                                        detection:
+                                            "Fail-safe mechanisms\nPilot override capability",
+                                    },
                                 } as FaultTreeNode,
                             ],
                         },
@@ -86,7 +98,10 @@ export const initialTree: TreeNode = {
                                     severity: 8,
                                     occurrence: 2,
                                     detection: 5,
-                                    controls: "Regular tank inspections",
+                                    controls: {
+                                        preventive: "Regular tank inspections",
+                                        detection: "",
+                                    },
                                 } as FaultTreeNode,
                             ],
                         },
@@ -104,7 +119,10 @@ export const initialTree: TreeNode = {
                                     severity: 6,
                                     occurrence: 4,
                                     detection: 3,
-                                    controls: "Training and monitoring",
+                                    controls: {
+                                        preventive: "Training and monitoring",
+                                        detection: "",
+                                    },
                                 } as FaultTreeNode,
                             ],
                         },
@@ -136,8 +154,12 @@ export const initialTree: TreeNode = {
                                     severity: 6,
                                     occurrence: 5,
                                     detection: 2,
-                                    controls:
-                                        "Battery charge monitoring\nLoad shedding procedures\nRedundant power sources\nRegular battery health checks",
+                                    controls: {
+                                        preventive:
+                                            "Battery charge monitoring\nLoad shedding procedures",
+                                        detection:
+                                            "Redundant power sources\nRegular battery health checks",
+                                    },
                                 } as FaultTreeNode,
                                 {
                                     id: "short_circuit",
@@ -148,8 +170,12 @@ export const initialTree: TreeNode = {
                                     severity: 9,
                                     occurrence: 3,
                                     detection: 4,
-                                    controls:
-                                        "Circuit breakers\nRegular wiring inspections\nInsulation resistance testing\nFault current limiters",
+                                    controls: {
+                                        preventive:
+                                            "Circuit breakers\nRegular wiring inspections",
+                                        detection:
+                                            "Insulation resistance testing\nFault current limiters",
+                                    },
                                 } as FaultTreeNode,
                             ],
                         },
@@ -174,7 +200,10 @@ export const initialTree: TreeNode = {
                                     severity: 10,
                                     occurrence: 8,
                                     detection: 7,
-                                    controls: "Temperature sensors",
+                                    controls: {
+                                        preventive: "",
+                                        detection: "Temperature sensors",
+                                    },
                                 } as FaultTreeNode,
                                 {
                                     id: "voltage_fluctuation",
@@ -185,7 +214,10 @@ export const initialTree: TreeNode = {
                                     severity: 6,
                                     occurrence: 4,
                                     detection: 5,
-                                    controls: "Voltage regulators",
+                                    controls: {
+                                        preventive: "Voltage regulators",
+                                        detection: "",
+                                    },
                                 } as FaultTreeNode,
                             ],
                         },
@@ -217,7 +249,11 @@ export const initialTree: TreeNode = {
                                     severity: 7,
                                     occurrence: 4,
                                     detection: 3,
-                                    controls: "Redundant navigation systems",
+                                    controls: {
+                                        preventive: "",
+                                        detection:
+                                            "Redundant navigation systems",
+                                    },
                                 } as FaultTreeNode,
                                 {
                                     id: "navigation_software_error",
@@ -228,13 +264,15 @@ export const initialTree: TreeNode = {
                                     severity: 6,
                                     occurrence: 3,
                                     detection: 5,
-                                    controls: "Regular software updates",
+                                    controls: {
+                                        preventive: "Regular software updates",
+                                        detection: "",
+                                    },
                                 } as FaultTreeNode,
                             ],
                         },
                     ],
                 },
-
                 {
                     id: "system_health_monitoring",
                     name: "System Health Monitoring",
@@ -249,7 +287,10 @@ export const initialTree: TreeNode = {
                             severity: 6,
                             occurrence: 4,
                             detection: 3,
-                            controls: "Regular sensor calibration",
+                            controls: {
+                                preventive: "Regular sensor calibration",
+                                detection: "",
+                            },
                         } as FaultTreeNode,
                         {
                             id: "data_processing_error",
@@ -260,7 +301,10 @@ export const initialTree: TreeNode = {
                             severity: 5,
                             occurrence: 3,
                             detection: 2,
-                            controls: "Error handling protocols",
+                            controls: {
+                                preventive: "",
+                                detection: "Error handling protocols",
+                            },
                         } as FaultTreeNode,
                     ],
                 },
@@ -280,7 +324,10 @@ export const initialTree: TreeNode = {
                     severity: 7,
                     occurrence: 4,
                     detection: 3,
-                    controls: "Regular inspections and monitoring systems",
+                    controls: {
+                        preventive: "Regular inspections",
+                        detection: "Monitoring systems",
+                    },
                 } as FaultTreeNode,
                 {
                     id: "engine_tuning_issue",
@@ -291,7 +338,10 @@ export const initialTree: TreeNode = {
                     severity: 6,
                     occurrence: 3,
                     detection: 2,
-                    controls: "Routine engine tuning and diagnostics",
+                    controls: {
+                        preventive: "Routine engine tuning",
+                        detection: "Diagnostics",
+                    },
                 } as FaultTreeNode,
             ],
         },

@@ -61,7 +61,10 @@ export function FaultCardComponent({
         severity: faultData.severity || 1,
         occurrence: faultData.occurrence || 1,
         detection: faultData.detection || 1,
-        controls: faultData.controls || "",
+        controls: {
+            preventive: faultData.controls?.preventive || "",
+            detection: faultData.controls?.detection || "",
+        },
     });
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
@@ -74,7 +77,10 @@ export function FaultCardComponent({
             severity: faultData.severity || 1,
             occurrence: faultData.occurrence || 1,
             detection: faultData.detection || 1,
-            controls: faultData.controls || "",
+            controls: {
+                preventive: faultData.controls?.preventive || "",
+                detection: faultData.controls?.detection || "",
+            },
         });
     }, [faultData, fault.name]);
 
@@ -104,7 +110,10 @@ export function FaultCardComponent({
             severity: faultData.severity || 1,
             occurrence: faultData.occurrence || 1,
             detection: faultData.detection || 1,
-            controls: faultData.controls || "",
+            controls: {
+                preventive: faultData.controls?.preventive || "",
+                detection: faultData.controls?.detection || "",
+            },
         });
         setIsEditing(false);
     };
@@ -519,20 +528,12 @@ function ControlsBox({
     isEditing,
     onEdit,
 }: {
-    controls: string;
+    controls: { preventive: string; detection: string };
     isExpanded: boolean;
     onToggle: () => void;
     isEditing?: boolean;
-    onEdit?: (value: string) => void;
+    onEdit?: (value: { preventive: string; detection: string }) => void;
 }) {
-    const [preventiveActions, detectionActions] = React.useMemo(() => {
-        const actions = controls
-            .split("\n")
-            .filter((action) => action.trim() !== "");
-        const midpoint = Math.ceil(actions.length / 2);
-        return [actions.slice(0, midpoint), actions.slice(midpoint)];
-    }, [controls]);
-
     return (
         <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 transition-all duration-200 hover:bg-gray-50">
             <h4
@@ -561,39 +562,59 @@ function ControlsBox({
                     }
                 `}
             >
-                {isEditing ? (
-                    <Textarea
-                        value={controls}
-                        onChange={(e) => onEdit?.(e.target.value)}
-                        className="min-h-[100px] w-full transition-all duration-200 focus:ring-2 focus:ring-yellow-500/20"
-                        placeholder="Enter controls (separate preventive and detection actions with new lines)"
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <ActionSection
+                        title="Preventive Actions"
+                        actions={controls.preventive}
+                        isEditing={isEditing}
+                        onEdit={(value) =>
+                            onEdit?.({ ...controls, preventive: value })
+                        }
                     />
-                ) : (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <ActionList
-                            title="Preventive Actions"
-                            actions={preventiveActions}
-                        />
-                        <ActionList
-                            title="Detection Actions"
-                            actions={detectionActions}
-                        />
-                    </div>
-                )}
+                    <ActionSection
+                        title="Detection Actions"
+                        actions={controls.detection}
+                        isEditing={isEditing}
+                        onEdit={(value) =>
+                            onEdit?.({ ...controls, detection: value })
+                        }
+                    />
+                </div>
             </div>
         </div>
     );
 }
 
-function ActionList({ title, actions }: { title: string; actions: string[] }) {
+function ActionSection({
+    title,
+    actions,
+    isEditing,
+    onEdit,
+}: {
+    title: string;
+    actions: string;
+    isEditing?: boolean;
+    onEdit?: (value: string) => void;
+}) {
+    const actionList = actions
+        .split("\n")
+        .filter((action) => action.trim() !== "");
+
     return (
         <div className="space-y-2">
             <h5 className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 {title}
             </h5>
-            {actions.length > 0 ? (
+            {isEditing ? (
+                <Textarea
+                    value={actions}
+                    onChange={(e) => onEdit?.(e.target.value)}
+                    className="min-h-[100px] w-full transition-all duration-200 focus:ring-2 focus:ring-yellow-500/20"
+                    placeholder={`Enter ${title.toLowerCase()}...`}
+                />
+            ) : actionList.length > 0 ? (
                 <ul className="space-y-2">
-                    {actions.map((action, index) => (
+                    {actionList.map((action, index) => (
                         <li
                             key={index}
                             className="flex items-start gap-2 text-sm text-gray-600 group"

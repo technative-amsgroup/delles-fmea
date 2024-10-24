@@ -75,7 +75,10 @@ export function FmeaPage() {
                     severity: faultNode.severity || 1,
                     cause: faultNode.cause || "",
                     occurrence: faultNode.occurrence || 1,
-                    controls: faultNode.controls || "",
+                    controls: faultNode.controls || {
+                        preventive: "",
+                        detection: "",
+                    },
                     detection: faultNode.detection || 1,
                 };
             }
@@ -249,7 +252,7 @@ export function FmeaPage() {
                 occurrence: 1,
                 detection: 1,
                 cause: "",
-                controls: "",
+                controls: { preventive: "", detection: "" },
             };
 
             return updatedData;

@@ -242,14 +242,24 @@ function addFaults(node: TreeNode, fmeaData: FMEAData): string {
                             "      " +
                             createXMLElement("CAUSE", {}, faultData.cause) +
                             "\n";
+                        xml += "      " + createXMLElement("CONTROLS") + "\n";
                         xml +=
-                            "      " +
+                            "        " +
                             createXMLElement(
-                                "CONTROLS",
+                                "PREVENTIVE",
                                 {},
-                                faultData.controls
+                                faultData.controls.preventive
                             ) +
                             "\n";
+                        xml +=
+                            "        " +
+                            createXMLElement(
+                                "DETECTION",
+                                {},
+                                faultData.controls.detection
+                            ) +
+                            "\n";
+                        xml += "      </CONTROLS>\n";
                         xml +=
                             "      " +
                             createXMLElement(

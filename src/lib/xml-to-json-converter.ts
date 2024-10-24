@@ -206,9 +206,12 @@ export async function convertXMLToJSON(
                                                 detection:
                                                     (fault as FaultTreeNode)
                                                         .detection || 1,
-                                                controls:
-                                                    (fault as FaultTreeNode)
-                                                        .controls || "",
+                                                controls: (
+                                                    fault as FaultTreeNode
+                                                ).controls || {
+                                                    preventive: "",
+                                                    detection: "",
+                                                },
                                             };
                                         }
                                     });
