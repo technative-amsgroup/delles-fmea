@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Download, Upload, ChevronDown } from "lucide-react";
 import { useNodeTypes } from "@/hooks/useNodeTypes";
+import { TreeDiagram } from "@/components/tree-diagram";
 
 // Add this interface near the top of the file
 interface FMEAFileData {
@@ -44,9 +45,9 @@ export function FmeaPage() {
 
     const [fmeaData, setFMEAData] = useState<FMEAData>({});
     const [treeData, setTreeData] = useState(initialTree);
-    const [activeTab, setActiveTab] = useState<"worksheet" | "analysis">(
-        "worksheet"
-    );
+    const [activeTab, setActiveTab] = useState<
+        "worksheet" | "diagram" | "analysis"
+    >("worksheet");
     const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
         () => new Set()
@@ -1358,6 +1359,14 @@ export function FmeaPage() {
                     >
                         Worksheet
                     </Button>
+                    <Button
+                        variant={
+                            activeTab === "diagram" ? "secondary" : "ghost"
+                        }
+                        onClick={() => setActiveTab("diagram")}
+                    >
+                        Tree Diagram
+                    </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
@@ -1413,7 +1422,13 @@ export function FmeaPage() {
                 </div>
             </div>
             <div className="flex flex-1 overflow-hidden">
-                {activeTab === "worksheet" ? (
+                {activeTab === "diagram" ? (
+                    // Full-width tree diagram
+                    <div className="w-full overflow-auto">
+                        <TreeDiagram data={treeData} />
+                    </div>
+                ) : (
+                    // Original layout for worksheet view
                     <>
                         <div className="w-1/4 p-4 bg-gray-100 overflow-auto">
                             <TreeView
@@ -1423,7 +1438,7 @@ export function FmeaPage() {
                                 onDeleteNode={handleDeleteNode}
                                 selectedNodeId={selectedNode?.id}
                                 onAddChild={handleAddChild}
-                                expandedNodes={expandedNodes} // This will now always be a Set
+                                expandedNodes={expandedNodes}
                                 onToggleExpand={(nodeId: string) => {
                                     setExpandedNodes((prev) => {
                                         const next = new Set(prev);
@@ -1459,13 +1474,6 @@ export function FmeaPage() {
                             />
                         </div>
                     </>
-                ) : (
-                    // <div className="w-full p-4 overflow-auto">
-                    //     <AnalysisPage data={fmeaData} />
-                    // </div> // Commented out
-                    <div className="w-full p-4 overflow-auto">
-                        {/* Analysis page content will be added in future updates */}
-                    </div>
                 )}
             </div>
             <input
