@@ -301,6 +301,9 @@ export const FunctionCard = React.memo(function FunctionCard({
                 {isExpanded && (
                     <CardContent className="p-0">
                         <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                                Faults / Failure Modes
+                            </h3>
                             <div className="flex justify-start items-center mb-3">
                                 <Button
                                     variant="outline"

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
-import { TreeNode } from "@/lib/types";
+import { TreeNode, ParentTreeNode } from "@/lib/types";
 import { exportAsSVG, exportAsPNG } from "@/lib/export-utils";
 
 interface TreeDiagramProps {
@@ -14,6 +14,8 @@ interface TreeDiagramProps {
 type HierarchyPointNode = d3.HierarchyPointNode<TreeNode>;
 type HierarchyPointLink = d3.HierarchyPointLink<TreeNode>;
 
+type ViewMode = "tree" | "element";
+
 // Add this interface to track collapsed state without modifying the original data
 interface CollapsibleState {
     [nodeId: string]: boolean;
@@ -24,7 +26,8 @@ export function TreeDiagram({
     width = 1200,
     height = 800,
 }: TreeDiagramProps) {
-    // Add state to track collapsed nodes
+    const [viewMode, setViewMode] = useState<ViewMode>("tree");
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [collapsedNodes, setCollapsedNodes] = useState<CollapsibleState>({});
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -56,20 +59,193 @@ export function TreeDiagram({
         [collapsedNodes]
     );
 
-    const handleNodeClick = (node: TreeNode) => {
-        if (node.type === "fault") return; // Don't allow clicking fault nodes
+    // Add this function after your state declarations
+    const filterDataForElementView = React.useCallback(
+        (node: TreeNode): TreeNode => {
+            if (!selectedNodeId) return node;
 
-        setCollapsedNodes((prev) => ({
-            ...prev,
-            [node.id]: !prev[node.id],
-        }));
-    };
+            // Function to find path to selected node and its descendants
+            const findNodePathAndDescendants = (
+                current: TreeNode,
+                path: Set<string> = new Set(),
+                isInSelectedSubtree: boolean = false
+            ): boolean => {
+                // If we're already in the selected node's subtree, add all descendants
+                if (isInSelectedSubtree) {
+                    path.add(current.id);
+                    current.children?.forEach((child) =>
+                        findNodePathAndDescendants(child, path, true)
+                    );
+                    return true;
+                }
+
+                // If this is the selected node, mark that we're entering its subtree
+                if (current.id === selectedNodeId) {
+                    path.add(current.id);
+                    current.children?.forEach((child) =>
+                        findNodePathAndDescendants(child, path, true)
+                    );
+                    return true;
+                }
+
+                // Continue searching for the selected node
+                if (current.type !== "fault" && current.children) {
+                    for (const child of current.children) {
+                        if (findNodePathAndDescendants(child, path, false)) {
+                            path.add(current.id);
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
+            const relevantNodes = new Set<string>();
+            findNodePathAndDescendants(node, relevantNodes);
+
+            // Function to filter the tree
+            const filterNode = (current: TreeNode): TreeNode | null => {
+                if (!relevantNodes.has(current.id)) {
+                    return null; // Remove nodes not in the path
+                }
+
+                if (current.type === "fault") {
+                    return current;
+                }
+
+                // For the selected node, keep the entire subtree without filtering
+                if (current.id === selectedNodeId) {
+                    return current; // Return the entire subtree without processing
+                }
+
+                // For ancestors of the selected node, only keep the path
+                const parentNode = current as ParentTreeNode;
+                const filteredChildren = parentNode.children
+                    .map((child) => filterNode(child))
+                    .filter((child): child is TreeNode => child !== null);
+
+                return {
+                    ...parentNode,
+                    children: filteredChildren,
+                } as ParentTreeNode;
+            };
+
+            return filterNode(node) || node;
+        },
+        [selectedNodeId]
+    );
+
+    const handleNodeClick = React.useCallback(
+        (node: TreeNode, isLabelClick = false) => {
+            if (node.type === "fault") return;
+
+            if (isLabelClick) {
+                setSelectedNodeId(node.id);
+
+                if (node.id === data.id) {
+                    // First, reset all collapsed states
+                    setCollapsedNodes({});
+
+                    // Then collapse everything except direct children of root
+                    const collapseAfterLevel1 = (
+                        currentNode: TreeNode,
+                        level: number
+                    ) => {
+                        if (level > 1 && currentNode.type !== "fault") {
+                            setCollapsedNodes((prev) => ({
+                                ...prev,
+                                [currentNode.id]: true,
+                            }));
+                            currentNode.children?.forEach((child) =>
+                                collapseAfterLevel1(child, level + 1)
+                            );
+                        }
+                    };
+
+                    // Start from level 1 (root's children)
+                    data.children?.forEach((child) =>
+                        collapseAfterLevel1(child, 2)
+                    );
+                } else {
+                    // Find the complete node in the original data tree
+                    const findNodeInTree = (
+                        searchNode: TreeNode,
+                        targetId: string
+                    ): TreeNode | null => {
+                        if (searchNode.id === targetId) return searchNode;
+                        if (
+                            searchNode.type !== "fault" &&
+                            searchNode.children
+                        ) {
+                            for (const child of searchNode.children) {
+                                const found = findNodeInTree(child, targetId);
+                                if (found) return found;
+                            }
+                        }
+                        return null;
+                    };
+
+                    // Get the complete node from the original data
+                    const originalNode = findNodeInTree(data, node.id);
+                    if (!originalNode) return;
+
+                    // Collect IDs from the complete subtree
+                    const subtreeNodeIds = new Set<string>();
+                    const collectSubtreeNodeIds = (currentNode: TreeNode) => {
+                        if (currentNode.type !== "fault") {
+                            subtreeNodeIds.add(currentNode.id);
+                            currentNode.children?.forEach(
+                                collectSubtreeNodeIds
+                            );
+                        }
+                    };
+
+                    collectSubtreeNodeIds(originalNode);
+
+                    setCollapsedNodes((prev) => {
+                        const newState = { ...prev };
+                        subtreeNodeIds.forEach((id) => {
+                            delete newState[id];
+                        });
+                        return newState;
+                    });
+                }
+            } else if (viewMode !== "element") {
+                // Toggle collapse state only in tree view
+                setCollapsedNodes((prev) => ({
+                    ...prev,
+                    [node.id]: !prev[node.id],
+                }));
+            } else {
+                // Element view - expand entire subtree recursively
+                const expandSubtree = (currentNode: TreeNode) => {
+                    setCollapsedNodes((prev) => {
+                        const newState = { ...prev };
+                        delete newState[currentNode.id]; // Expand current node
+                        return newState;
+                    });
+
+                    // Recursively expand children
+                    currentNode.children?.forEach(expandSubtree);
+                };
+
+                expandSubtree(node);
+            }
+        },
+        [viewMode, data]
+    );
 
     useEffect(() => {
         if (!svgRef.current) return;
 
-        // Process data with collapsed states
-        const processedData = processData(data);
+        // First filter the data based on view mode
+        let processedData = data;
+        if (viewMode === "element" && selectedNodeId) {
+            processedData = filterDataForElementView(data);
+        }
+
+        // Then process collapsed states
+        processedData = processData(processedData);
 
         // Clear any existing content
         d3.select(svgRef.current).selectAll("*").remove();
@@ -309,33 +485,93 @@ export function TreeDiagram({
         nodes
             .append("text")
             .attr("dy", "0.31em")
-            .attr("x", (d: HierarchyPointNode) => (d.children ? -25 : 25)) // Increased spacing from -20/20 to -25/25
+            .attr("x", (d: HierarchyPointNode) => (d.children ? -25 : 25))
             .attr("text-anchor", (d: HierarchyPointNode) =>
                 d.children ? "end" : "start"
             )
             .text((d: HierarchyPointNode) => d.data.name)
-            .attr("class", "text-sm fill-gray-700 font-medium") // Added font-medium
+            .attr("class", "text-sm fill-gray-700 font-medium")
+            .style("cursor", "pointer")
+            .on("click", (event, d: HierarchyPointNode) => {
+                handleNodeClick(d.data, true);
+            })
             .clone(true)
             .lower()
             .attr("stroke", "white")
-            .attr("stroke-width", 4); // Increased stroke width for better text background
-    }, [data, width, height, collapsedNodes, processData]); // Added processData to dependencies
+            .attr("stroke-width", 4);
+    }, [
+        data,
+        width,
+        height,
+        collapsedNodes,
+        processData,
+        viewMode,
+        selectedNodeId,
+        filterDataForElementView,
+        handleNodeClick,
+    ]);
+
+    useEffect(() => {
+        if (viewMode === "element") {
+            // Collapse all nodes beyond level 1 (root's direct children)
+            const initializeCollapsedState = (
+                node: TreeNode,
+                level: number
+            ) => {
+                if (level > 1 && node.children?.length) {
+                    setCollapsedNodes((prev) => ({ ...prev, [node.id]: true }));
+                }
+                node.children?.forEach((child) =>
+                    initializeCollapsedState(child, level + 1)
+                );
+            };
+            initializeCollapsedState(data, 1);
+        }
+    }, [viewMode, data]);
 
     return (
         <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="flex gap-2 mb-4">
-                <button
-                    onClick={handleExportSVG}
-                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                >
-                    Export SVG
-                </button>
-                <button
-                    onClick={handleExportPNG}
-                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                >
-                    Export PNG
-                </button>
+            <div className="flex justify-between mb-4">
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleExportSVG}
+                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    >
+                        Export SVG
+                    </button>
+                    <button
+                        onClick={handleExportPNG}
+                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    >
+                        Export PNG
+                    </button>
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            setViewMode("tree");
+                            setSelectedNodeId(null);
+                            setCollapsedNodes({});
+                        }}
+                        className={`px-3 py-1 text-sm rounded transition-colors ${
+                            viewMode === "tree"
+                                ? "bg-blue-500 text-white"
+                                : "bg-gray-200 text-gray-700"
+                        }`}
+                    >
+                        Tree View
+                    </button>
+                    <button
+                        onClick={() => setViewMode("element")}
+                        className={`px-3 py-1 text-sm rounded transition-colors ${
+                            viewMode === "element"
+                                ? "bg-blue-500 text-white"
+                                : "bg-gray-200 text-gray-700"
+                        }`}
+                    >
+                        Element View
+                    </button>
+                </div>
             </div>
             <div className="overflow-auto">
                 <svg ref={svgRef} className="w-full h-full" />
