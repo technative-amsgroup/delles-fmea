@@ -264,7 +264,7 @@ export function TreeDiagram({
         // Initialize the tree layout
         const treeLayout = d3
             .tree<TreeNode>()
-            .size([height - 120, width - 300]); // Adjust for margins
+            .size([height - 200, width - 200]); // Changed from width - 300 to width - 600 to double horizontal spacing
 
         // Create the hierarchy from data
         const root = d3.hierarchy(processedData) as d3.HierarchyNode<TreeNode>;
